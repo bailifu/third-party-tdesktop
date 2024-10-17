@@ -1121,8 +1121,13 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
   using Connection = MTP::details::AbstractConnection;
   const auto pointer = checker.get();
-  pointer->connect(pointer, &Connection::connected, [=] {
+  if (!pointer) {
+    return;
+  }
+
+  QObject::connect(pointer, &Connection::connected, [=] {
     const auto item = findById(id);
+    if (!item) return;
     const auto pingTime = pointer->pingTime();
     item->checker = nullptr;
     item->checkerv6 = nullptr;
@@ -1132,8 +1137,10 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
       updateView(*item);
     }
   });
+
   const auto failed = [=] {
     const auto item = findById(id);
+    if (!item) return;
     if (item->checker == pointer) {
       item->checker = nullptr;
     } else if (item->checkerv6 == pointer) {
@@ -1145,8 +1152,9 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
       updateView(*item);
     }
   };
-  pointer->connect(pointer, &Connection::disconnected, failed);
-  pointer->connect(pointer, &Connection::error, failed);
+
+  QObject::connect(pointer, &Connection::disconnected, failed);
+  QObject::connect(pointer, &Connection::error, failed);
 }
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
@@ -1380,6 +1388,8 @@ auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 }
 
 void ProxiesBoxController::updateView(const Item &item) {
+  if (!_show) return;
+
   const auto selected = (_settings.selected() == item.data);
   const auto deleted = item.deleted;
   const auto type = [&] {
