@@ -87,15 +87,6 @@ class ConnectionState::Widget : public Ui::AbstractButton {
   Widget(QWidget *parent, not_null<Main::Account *> account,
          const Layout &layout)
       : AbstractButton(parent), _account(account), _currentLayout(layout) {
-    // 移除所有子控件的创建
-    // _proxyIcon = Ui::CreateChild<ProxyIcon>(this);
-    // _progress = Ui::CreateChild<Progress>(this);
-
-    // 移除点击处理器
-    // addClickHandler([=] {
-    //     Ui::show(ProxiesBoxController::CreateOwningBox(account));
-    // });
-
     hide();  // 隐藏整个 Widget
   }
 
@@ -123,10 +114,6 @@ class ConnectionState::Widget : public Ui::AbstractButton {
 
   const not_null<Main::Account *> _account;
   Layout _currentLayout;
-  // 移除不再使用的成员
-  // base::unique_qptr<Ui::LinkButton> _retry;
-  // QPointer<Progress> _progress;
-  // QPointer<ProxyIcon> _proxyIcon;
   rpl::event_stream<> _refreshStateRequests;
 };
 
@@ -216,18 +203,6 @@ ConnectionState::ConnectionState(not_null<Ui::RpWidget *> parent,
       _parent(parent),
       _refreshTimer([=] { refreshState(); }),
       _currentLayout(computeLayout(_state)) {
-  // 移除或修改可能导致显示 Widget 的代码
-  // rpl::combine(
-  //     std::move(shown),
-  //     visibility()
-  // ) | rpl::start_with_next([=](bool shown, float64 visible) {
-  //     if (!shown || visible == 0.) {
-  //         _widget = nullptr;
-  //     } else if (!_widget) {
-  //         createWidget();
-  //     }
-  // }, _lifetime);
-
   if (!Core::UpdaterDisabled()) {
     Core::UpdateChecker checker;
     rpl::merge(rpl::single(rpl::empty), checker.ready()) |
@@ -360,9 +335,6 @@ void ConnectionState::changeVisibilityWithLayout(const Layout &layout) {
 
 void ConnectionState::setLayout(const Layout &layout) {
   _currentLayout = layout;
-  // 移除对不存在控件的操作
-  // _proxyIcon->setToggled(_currentLayout.proxyEnabled);
-  // refreshRetryLink(_currentLayout.hasRetry);
 }
 
 void ConnectionState::refreshProgressVisibility() {
@@ -438,22 +410,6 @@ void ConnectionState::updateWidth() {
   refreshProgressVisibility();
 }
 
-ConnectionState::Widget::Widget(QWidget *parent,
-                                not_null<Main::Account *> account,
-                                const Layout &layout)
-    : AbstractButton(parent), _account(account), _currentLayout(layout) {
-  // 移除所有子控件的创建
-  // _proxyIcon = Ui::CreateChild<ProxyIcon>(this);
-  // _progress = Ui::CreateChild<Progress>(this);
-
-  // 移除点击处理器
-  // addClickHandler([=] {
-  //     Ui::show(ProxiesBoxController::CreateOwningBox(account));
-  // });
-
-  hide();  // 隐藏整个 Widget
-}
-
 void ConnectionState::Widget::onStateChanged(AbstractButton::State was,
                                              StateChangeSource source) {
   Ui::PostponeCall(crl::guard(this, [=] { _refreshStateRequests.fire({}); }));
@@ -481,16 +437,6 @@ QRect ConnectionState::Widget::textRect() const {
 }
 
 void ConnectionState::Widget::resizeEvent(QResizeEvent *e) {
-  {
-    const auto xShift = (height() - _progress->width()) / 2;
-    const auto yShift = (height() - _progress->height()) / 2;
-    _progress->moveToLeft(xShift, yShift);
-  }
-  {
-    const auto xShift = (height() - _proxyIcon->width()) / 2;
-    const auto yShift = (height() - _proxyIcon->height()) / 2;
-    _proxyIcon->moveToRight(xShift, yShift);
-  }
   updateRetryGeometry();
 }
 
