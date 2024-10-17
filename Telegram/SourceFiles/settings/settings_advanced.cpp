@@ -101,36 +101,16 @@ void SetupConnectionType(not_null<Window::Controller *> controller,
 bool HasUpdate() { return !Core::UpdaterDisabled(); }
 
 void SetupUpdate(not_null<Ui::VerticalLayout *> container) {
+  cSetAutoUpdate(false);
+  Core::App().settings().setUpdateCheckAutomatically(false);
+  Core::App().saveSettingsDelayed();
+
   if (!HasUpdate()) {
     return;
   }
 
-  const auto texts =
-      Ui::CreateChild<rpl::event_stream<QString>>(container.get());
-  const auto downloading =
-      Ui::CreateChild<rpl::event_stream<bool>>(container.get());
-  const auto version = tr::lng_settings_current_version(tr::now, lt_version,
-                                                        currentVersionText());
-  const auto toggle = container->add(
-      object_ptr<Button>(container, tr::lng_settings_update_automatically(),
-                         st::settingsButtonNoIcon));
-  const auto label = Ui::CreateChild<Ui::FlatLabel>(toggle, texts->events(),
-                                                    st::settingsUpdateState);
+  const auto install = nullptr;
 
-  const auto options =
-      container->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-          container, object_ptr<Ui::VerticalLayout>(container)));
-  const auto inner = options->entity();
-  const auto install = cAlphaVersion()
-                           ? nullptr
-                           : inner->add(object_ptr<Button>(
-                                 inner, tr::lng_settings_install_beta(),
-                                 st::settingsButtonNoIcon));
-
-  const auto check = inner->add(object_ptr<Button>(
-      inner, tr::lng_settings_check_now(), st::settingsButtonNoIcon));
-  const auto update = Ui::CreateChild<Button>(check, tr::lng_update_telegram(),
-                                              st::settingsUpdate);
   update->hide();
   check->widthValue() | rpl::start_with_next(
                             [=](int width) {
@@ -949,18 +929,7 @@ void Advanced::setupContent(not_null<Window::SessionController *> controller) {
       AddDivider(content);
     }
   };
-  const auto addUpdate = [&] {
-    if (HasUpdate()) {
-      addDivider();
-      AddSkip(content);
-      AddSubsectionTitle(content, tr::lng_settings_version_info());
-      SetupUpdate(content);
-      AddSkip(content);
-    }
-  };
-  if (!cAutoUpdate()) {
-    addUpdate();
-  }
+
   addDivider();
   SetupDataStorage(controller, content);
   SetupAutoDownload(controller, content);
@@ -980,10 +949,6 @@ void Advanced::setupContent(not_null<Window::SessionController *> controller) {
     AddSubsectionTitle(content, tr::lng_settings_spellchecker());
     SetupSpellchecker(controller, content);
     AddSkip(content);
-  }
-
-  if (cAutoUpdate()) {
-    addUpdate();
   }
 
   AddSkip(content);
