@@ -25,9 +25,6 @@ class SessionController;
 
 namespace Settings {
 
-void SetupConnectionType(not_null<Window::Controller *> controller,
-                         not_null<::Main::Account *> account,
-                         not_null<Ui::VerticalLayout *> container);
 bool HasUpdate();
 void SetupWindowTitleContent(Window::SessionController *controller,
                              not_null<Ui::VerticalLayout *> container);

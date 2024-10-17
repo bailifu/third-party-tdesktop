@@ -194,6 +194,7 @@ class ProxiesBox : public Ui::BoxContent {
  private:
   void setupContent();
   void setupTopButton();
+  void createNoRowsLabel();
   void addNewProxy();
   void applyView(View &&view);
   void setupButtons(int id, not_null<ProxyRow *> button);
@@ -637,10 +638,17 @@ void ProxiesBox::setupContent() {
                      st::proxyTryIPv6Padding.right(),
                      st::proxyTryIPv6Padding.top()));
 
+  _about = inner->add(
+      object_ptr<Ui::DividerLabel>(
+          inner,
+          object_ptr<Ui::FlatLabel>(inner, tr::lng_proxy_about(tr::now),
+                                    st::boxDividerLabel),
+          st::proxyAboutPadding),
+      style::margins(0, 0, 0, st::proxyRowPadding.top()));
+
+  _wrap = inner->add(std::move(_initialWrap));
   inner->add(
-      object_ptr<Ui::FlatLabel>(inner, tr::lng_proxy_description(tr::now),
-                                st::proxyEmptyListLabel),
-      st::proxyAboutPadding);
+      object_ptr<Ui::FixedHeightWidget>(inner, st::proxyRowPadding.bottom()));
 
   _proxySettings->setChangedCallback([=](ProxyData::Settings value) {
     if (!_controller->setProxySettings(value)) {
@@ -664,6 +672,9 @@ void ProxiesBox::setupContent() {
           [=](bool checked) { _controller->setProxyForCalls(checked); },
           _proxyForCalls->lifetime());
 
+  if (_rows.empty()) {
+    createNoRowsLabel();
+  }
   refreshProxyForCalls();
   _proxyForCalls->finishAnimating();
 
@@ -724,6 +735,24 @@ void ProxiesBox::applyView(View &&view) {
   } else {
     i->second->updateFields(std::move(view));
   }
+}
+
+void ProxiesBox::createNoRowsLabel() {
+  _noRows.reset(
+      _wrap->add(object_ptr<Ui::FixedHeightWidget>(_wrap, rowHeight()),
+                 st::proxyEmptyListPadding));
+  _noRows->resize((st::boxWideWidth - st::proxyEmptyListPadding.left() -
+                   st::proxyEmptyListPadding.right()),
+                  _noRows->height());
+  const auto label = Ui::CreateChild<Ui::FlatLabel>(
+      _noRows.get(), tr::lng_proxy_description(tr::now),
+      st::proxyEmptyListLabel);
+  _noRows->widthValue() | rpl::start_with_next(
+                              [=](int width) {
+                                label->resizeToWidth(width);
+                                label->moveToLeft(0, 0);
+                              },
+                              label->lifetime());
 }
 
 void ProxiesBox::setupButtons(int id, not_null<ProxyRow *> button) {
@@ -972,7 +1001,7 @@ void ProxyBox::addLabel(not_null<Ui::VerticalLayout *> parent,
 ProxiesBoxController::ProxiesBoxController(not_null<Main::Account *> account)
     : _account(account),
       _settings(Core::App().settings().proxy()),
-      _saveTimer([] {}) {
+      _saveTimer([] { Local::writeSettings(); }) {
   _list = ranges::views::all(_settings.list()) |
           ranges::views::transform([&](const ProxyData &proxy) {
             return Item{++_idCounter, proxy};
@@ -991,7 +1020,7 @@ ProxiesBoxController::ProxiesBoxController(not_null<Main::Account *> account)
           _lifetime);
 
   for (auto &item : _list) {
-    item.state = ItemState::Unavailable;
+    refreshChecker(item);
   }
 }
 
@@ -1076,11 +1105,77 @@ auto ProxiesBoxController::proxySettingsValue() const
 }
 
 void ProxiesBoxController::refreshChecker(Item &item) {
-  item.state = ItemState::Unavailable;
+  using Variants = MTP::DcOptions::Variants;
+  const auto type =
+      (item.data.type == Type::Http) ? Variants::Http : Variants::Tcp;
+  const auto mtproto = &_account->mtp();
+  const auto dcId = mtproto->mainDcId();
+  const auto forFiles = false;
+
+  item.state = ItemState::Checking;
+  const auto setup = [&](Checker &checker, const bytes::vector &secret) {
+    checker = MTP::details::AbstractConnection::Create(
+        mtproto, type, QThread::currentThread(), secret, item.data);
+    setupChecker(item.id, checker);
+  };
+  if (item.data.type == Type::Mtproto) {
+    const auto secret = item.data.secretFromMtprotoPassword();
+    setup(item.checker, secret);
+    item.checker->connectToServer(item.data.host, item.data.port, secret, dcId,
+                                  forFiles);
+    item.checkerv6 = nullptr;
+  } else {
+    const auto options =
+        mtproto->dcOptions().lookup(dcId, MTP::DcType::Regular, true);
+    const auto connect = [&](Checker &checker, Variants::Address address) {
+      const auto &list = options.data[address][type];
+      if (list.empty() || ((address == Variants::IPv6) &&
+                           !Core::App().settings().proxy().tryIPv6())) {
+        checker = nullptr;
+        return;
+      }
+      const auto &endpoint = list.front();
+      setup(checker, endpoint.secret);
+      checker->connectToServer(QString::fromStdString(endpoint.ip),
+                               endpoint.port, endpoint.secret, dcId, forFiles);
+    };
+    connect(item.checker, Variants::IPv4);
+    connect(item.checkerv6, Variants::IPv6);
+    if (!item.checker && !item.checkerv6) {
+      item.state = ItemState::Unavailable;
+    }
+  }
 }
 
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
-  // nothing
+  using Connection = MTP::details::AbstractConnection;
+  const auto pointer = checker.get();
+  pointer->connect(pointer, &Connection::connected, [=] {
+    const auto item = findById(id);
+    const auto pingTime = pointer->pingTime();
+    item->checker = nullptr;
+    item->checkerv6 = nullptr;
+    if (item->state == ItemState::Checking) {
+      item->state = ItemState::Available;
+      item->ping = pingTime;
+      updateView(*item);
+    }
+  });
+  const auto failed = [=] {
+    const auto item = findById(id);
+    if (item->checker == pointer) {
+      item->checker = nullptr;
+    } else if (item->checkerv6 == pointer) {
+      item->checkerv6 = nullptr;
+    }
+    if (!item->checker && !item->checkerv6 &&
+        item->state == ItemState::Checking) {
+      item->state = ItemState::Unavailable;
+      updateView(*item);
+    }
+  };
+  pointer->connect(pointer, &Connection::disconnected, failed);
+  pointer->connect(pointer, &Connection::error, failed);
 }
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
@@ -1120,11 +1215,16 @@ void ProxiesBoxController::shareItem(int id) { share(findById(id)->data); }
 
 void ProxiesBoxController::applyItem(int id) {
   auto item = findById(id);
-  if (item->deleted) {
+  if (_settings.isEnabled() && (_settings.selected() == item->data)) {
+    return;
+  } else if (item->deleted) {
     return;
   }
 
   auto j = findByProxy(_settings.selected());
+
+  Core::App().setCurrentProxy(item->data, ProxyData::Settings::Enabled);
+  saveDelayed();
 
   if (j != end(_list)) {
     updateView(*j);
@@ -1135,6 +1235,47 @@ void ProxiesBoxController::applyItem(int id) {
 void ProxiesBoxController::setDeleted(int id, bool deleted) {
   auto item = findById(id);
   item->deleted = deleted;
+
+  if (deleted) {
+    auto &proxies = _settings.list();
+    proxies.erase(ranges::remove(proxies, item->data), end(proxies));
+
+    if (item->data == _settings.selected()) {
+      _lastSelectedProxy = _settings.selected();
+      _settings.setSelected(MTP::ProxyData());
+      if (_settings.isEnabled()) {
+        _lastSelectedProxyUsed = true;
+        Core::App().setCurrentProxy(ProxyData(), ProxyData::Settings::System);
+        saveDelayed();
+      } else {
+        _lastSelectedProxyUsed = false;
+      }
+    }
+  } else {
+    auto &proxies = _settings.list();
+    if (ranges::find(proxies, item->data) == end(proxies)) {
+      auto insertBefore = item + 1;
+      while (insertBefore != end(_list) && insertBefore->deleted) {
+        ++insertBefore;
+      }
+      auto insertBeforeIt = (insertBefore == end(_list))
+                                ? end(proxies)
+                                : ranges::find(proxies, insertBefore->data);
+      proxies.insert(insertBeforeIt, item->data);
+    }
+
+    if (!_settings.selected() && _lastSelectedProxy == item->data) {
+      Assert(!_settings.isEnabled());
+
+      if (base::take(_lastSelectedProxyUsed)) {
+        Core::App().setCurrentProxy(base::take(_lastSelectedProxy),
+                                    ProxyData::Settings::Enabled);
+      } else {
+        _settings.setSelected(base::take(_lastSelectedProxy));
+      }
+    }
+  }
+  saveDelayed();
   updateView(*item);
 }
 
@@ -1211,8 +1352,12 @@ bool ProxiesBoxController::contains(const ProxyData &proxy) const {
 }
 
 void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
+  auto &proxies = _settings.list();
+  proxies.push_back(proxy);
+
   _list.push_back({++_idCounter, proxy});
-  updateView(_list.back());
+  refreshChecker(_list.back());
+  applyItem(_list.back().id);
 }
 
 bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
@@ -1229,19 +1374,34 @@ bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
       }
     }
   }
+  Core::App().setCurrentProxy(_settings.selected(), value);
+  saveDelayed();
   return true;
 }
 
 void ProxiesBoxController::setProxyForCalls(bool enabled) {
-  // nothing
+  if (_settings.useProxyForCalls() == enabled) {
+    return;
+  }
+  _settings.setUseProxyForCalls(enabled);
+  if (_settings.isEnabled() && _settings.selected().supportsCalls()) {
+    _settings.connectionTypeChangesNotify();
+  }
+  saveDelayed();
 }
 
 void ProxiesBoxController::setTryIPv6(bool enabled) {
-  // nothing
+  if (Core::App().settings().proxy().tryIPv6() == enabled) {
+    return;
+  }
+  Core::App().settings().proxy().setTryIPv6(enabled);
+  _account->mtp().restart();
+  _settings.connectionTypeChangesNotify();
+  saveDelayed();
 }
 
 void ProxiesBoxController::saveDelayed() {
-  // nothing
+  _saveTimer.callOnce(kSaveSettingsDelayedTimeout);
 }
 
 auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
@@ -1249,8 +1409,6 @@ auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 }
 
 void ProxiesBoxController::updateView(const Item &item) {
-  if (!_show) return;
-
   const auto selected = (_settings.selected() == item.data);
   const auto deleted = item.deleted;
   const auto type = [&] {
@@ -1264,7 +1422,14 @@ void ProxiesBoxController::updateView(const Item &item) {
     }
     Unexpected("Proxy type in ProxiesBoxController::updateView.");
   }();
-  const auto state = ItemState::Unavailable;
+  const auto state = [&] {
+    if (!selected || !_settings.isEnabled()) {
+      return item.state;
+    } else if (_account->mtp().dcstate() == MTP::ConnectedState) {
+      return ItemState::Online;
+    }
+    return ItemState::Connecting;
+  }();
   const auto supportsShare =
       (item.data.type == Type::Socks5) || (item.data.type == Type::Mtproto);
   const auto supportsCalls = item.data.supportsCalls();
@@ -1274,9 +1439,29 @@ void ProxiesBoxController::updateView(const Item &item) {
 }
 
 void ProxiesBoxController::share(const ProxyData &proxy) {
-  // nothing
+  if (proxy.type == Type::Http) {
+    return;
+  }
+  const auto link =
+      u"https://t.me/"_q + (proxy.type == Type::Socks5 ? "socks" : "proxy") +
+      "?server=" + proxy.host + "&port=" + QString::number(proxy.port) +
+      ((proxy.type == Type::Socks5 && !proxy.user.isEmpty())
+           ? "&user=" + qthelp::url_encode(proxy.user)
+           : "") +
+      ((proxy.type == Type::Socks5 && !proxy.password.isEmpty())
+           ? "&pass=" + qthelp::url_encode(proxy.password)
+           : "") +
+      ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
+           ? "&secret=" + proxy.password
+           : "");
+  QGuiApplication::clipboard()->setText(link);
+  _show->showToast(tr::lng_username_copied(tr::now));
 }
 
 ProxiesBoxController::~ProxiesBoxController() {
-  // nothing
+  if (_saveTimer.isActive()) {
+    base::call_delayed(kSaveSettingsDelayedTimeout,
+                       QCoreApplication::instance(),
+                       [] { Local::writeSettings(); });
+  }
 }

@@ -1086,11 +1086,6 @@ void SetupDataStorage(
 
 	Ui::AddSubsectionTitle(container, tr::lng_settings_data_storage());
 
-	SetupConnectionType(
-		&controller->window(),
-		&controller->session().account(),
-		container);
-
 #ifndef OS_WIN_STORE
 	const auto showpath = container->lifetime(
 	).make_state<rpl::event_stream<bool>>();

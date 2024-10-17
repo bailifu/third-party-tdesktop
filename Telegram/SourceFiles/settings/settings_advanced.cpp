@@ -71,33 +71,6 @@ namespace {
 
 }  // namespace
 
-void SetupConnectionType(not_null<Window::Controller *> controller,
-                         not_null<Main::Account *> account,
-                         not_null<Ui::VerticalLayout *> container) {
-  const auto connectionType = [=] {
-    const auto transport = account->mtp().dctransport();
-    if (!Core::App().settings().proxy().isEnabled()) {
-      return transport.isEmpty()
-                 ? tr::lng_connection_auto_connecting(tr::now)
-                 : tr::lng_connection_auto(tr::now, lt_transport, transport);
-    } else {
-      return transport.isEmpty()
-                 ? tr::lng_connection_proxy_connecting(tr::now)
-                 : tr::lng_connection_proxy(tr::now, lt_transport, transport);
-    }
-  };
-  const auto button = AddButtonWithLabel(
-      container, tr::lng_settings_connection_type(),
-      rpl::merge(Core::App().settings().proxy().connectionTypeChanges(),
-                 // Handle language switch.
-                 tr::lng_connection_auto_connecting() | rpl::to_empty) |
-          rpl::map(connectionType),
-      st::settingsButton, {&st::menuIconNetwork});
-  button->addClickHandler([=] {
-    controller->show(ProxiesBoxController::CreateOwningBox(account));
-  });
-}
-
 bool HasUpdate() { return !Core::UpdaterDisabled(); }
 
 bool HasSystemSpellchecker() {

@@ -62,7 +62,6 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
   Ui::AddDivider(result);
   Ui::AddSkip(result);
   SetupLanguageButton(window, result);
-  SetupConnectionType(window, &window->account(), result);
   Ui::AddSkip(result);
   if (HasUpdate()) {
     Ui::AddDivider(result);
