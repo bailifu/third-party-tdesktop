@@ -646,7 +646,6 @@ class SessionsContent::Inner : public Ui::RpWidget {
   std::unique_ptr<ListController> _current;
   QPointer<Ui::SettingsButton> _terminateAll;
   std::unique_ptr<ListController> _incomplete;
-  std::unique_ptr<ListController> _list;
   rpl::variable<int> _ttlDays;
 };
 
@@ -866,18 +865,6 @@ void SessionsContent::Inner::setupContent() {
   AddSkip(incompleteInner);
   AddDividerText(incompleteInner, tr::lng_sessions_incomplete_about());
 
-  const auto listWrap =
-      content
-          ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-              content, object_ptr<Ui::VerticalLayout>(content)))
-          ->setDuration(0);
-  const auto listInner = listWrap->entity();
-  AddSkip(listInner, st::sessionSubtitleSkip);
-  AddSubsectionTitle(listInner, tr::lng_sessions_other_header());
-  _list = ListController::Add(listInner, session);
-  AddSkip(listInner);
-  AddDividerText(listInner, tr::lng_sessions_about_apps());
-
   const auto ttlWrap =
       content
           ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -898,21 +885,10 @@ void SessionsContent::Inner::setupContent() {
 
   AddSkip(ttlInner);
 
-  const auto placeholder =
-      content
-          ->add(object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-              content,
-              object_ptr<Ui::FlatLabel>(content, tr::lng_sessions_other_desc(),
-                                        st::boxDividerLabel),
-              st::defaultBoxDividerLabelPadding))
-          ->setDuration(0);
-
   terminateWrap->toggleOn(rpl::combine(_incomplete->itemsCount(),
                                        _list->itemsCount(), (_1 + _2) > 0));
   incompleteWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
-  listWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
   ttlWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
-  placeholder->toggleOn(_list->itemsCount() | rpl::map(_1 == 0));
 
   Ui::ResizeFitChild(this, content);
 }
