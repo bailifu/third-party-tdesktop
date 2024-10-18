@@ -271,6 +271,7 @@ class Content : public Ui::RpWidget {
   void terminate(Fn<void(bool block)> sendRequest, rpl::producer<QString> title,
                  rpl::producer<QString> text, QString blockText = QString());
   void terminateOne(uint64 hash);
+  void terminateAll();
 
   const not_null<Window::SessionController *> _controller;
   const not_null<Api::Websites *> _websites;
@@ -321,11 +322,13 @@ class Content::Inner : public Ui::RpWidget {
   void showData(const Api::Websites::List &data);
   [[nodiscard]] rpl::producer<EntryData> showRequests() const;
   [[nodiscard]] rpl::producer<uint64> terminateOne() const;
+  [[nodiscard]] rpl::producer<> terminateAll() const;
 
  private:
   void setupContent();
 
   const not_null<Window::SessionController *> _controller;
+  QPointer<Ui::SettingsButton> _terminateAll;
   std::unique_ptr<ListController> _list;
 };
 
@@ -351,6 +354,9 @@ void Content::setupContent() {
   _inner->terminateOne() |
       rpl::start_with_next([=](uint64 hash) { terminateOne(hash); },
                            lifetime());
+
+  _inner->terminateAll() |
+      rpl::start_with_next([=] { terminateAll(); }, lifetime());
 
   _loading.changes() |
       rpl::start_with_next([=](bool value) { _inner->setVisible(!value); },
@@ -462,6 +468,21 @@ void Content::terminateOne(uint64 hash) {
             tr::lng_settings_disconnect_block(tr::now, lt_name, bot->name()));
 }
 
+void Content::terminateAll() {
+  const auto weak = Ui::MakeWeak(this);
+  auto callback = [=](bool block) {
+    const auto reset = crl::guard(weak, [=] {
+      _websites->cancelCurrentRequest();
+      _websites->reload();
+    });
+    _websites->requestTerminate([=](const MTPBool &result) { reset(); },
+                                [=](const MTP::Error &result) { reset(); });
+    _loading = true;
+  };
+  terminate(std::move(callback), tr::lng_settings_disconnect_all_title(),
+            tr::lng_settings_disconnect_all_sure());
+}
+
 Content::Inner::Inner(QWidget *parent,
                       not_null<Window::SessionController *> controller)
     : RpWidget(parent), _controller(controller) {
@@ -482,8 +503,22 @@ void Content::Inner::setupContent() {
               content, object_ptr<Ui::VerticalLayout>(content)))
           ->setDuration(0);
   const auto terminateInner = terminateWrap->entity();
+  _terminateAll = terminateInner->add(
+      CreateButtonWithIcon(terminateInner, tr::lng_settings_disconnect_all(),
+                           st::infoBlockButton, {.icon = &st::infoIconBlock}));
   Ui::AddSkip(terminateInner);
   Ui::AddDividerText(terminateInner, tr::lng_settings_logged_in_description());
+
+  const auto listWrap =
+      content
+          ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+              content, object_ptr<Ui::VerticalLayout>(content)))
+          ->setDuration(0);
+  const auto listInner = listWrap->entity();
+  Ui::AddSkip(listInner, st::sessionSubtitleSkip);
+  Ui::AddSubsectionTitle(listInner, tr::lng_settings_logged_in_title());
+  _list = ListController::Add(listInner, session);
+  Ui::AddSkip(listInner);
 
   const auto skip = st::noContactsHeight / 2;
   const auto placeholder =
@@ -497,6 +532,7 @@ void Content::Inner::setupContent() {
           ->setDuration(0);
 
   terminateWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
+  listWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
   placeholder->toggleOn(_list->itemsCount() | rpl::map(_1 == 0));
 
   Ui::ResizeFitChild(this, content);
@@ -504,6 +540,10 @@ void Content::Inner::setupContent() {
 
 void Content::Inner::showData(const Api::Websites::List &data) {
   _list->showData(data);
+}
+
+rpl::producer<> Content::Inner::terminateAll() const {
+  return _terminateAll->clicks() | rpl::to_empty;
 }
 
 rpl::producer<uint64> Content::Inner::terminateOne() const {

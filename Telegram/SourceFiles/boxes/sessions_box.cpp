@@ -585,6 +585,7 @@ class SessionsContent : public Ui::RpWidget {
 
   void terminate(Fn<void()> terminateRequest, QString message);
   void terminateOne(uint64 hash);
+  void terminateAll();
 
   const not_null<Window::SessionController *> _controller;
   const not_null<Api::Authorizations *> _authorizations;
@@ -636,12 +637,14 @@ class SessionsContent::Inner : public Ui::RpWidget {
   void showData(const Full &data);
   [[nodiscard]] rpl::producer<EntryData> showRequests() const;
   [[nodiscard]] rpl::producer<uint64> terminateOne() const;
+  [[nodiscard]] rpl::producer<> terminateAll() const;
 
  private:
   void setupContent();
 
   const not_null<Window::SessionController *> _controller;
   std::unique_ptr<ListController> _current;
+  QPointer<Ui::SettingsButton> _terminateAll;
   std::unique_ptr<ListController> _incomplete;
   std::unique_ptr<ListController> _list;
   rpl::variable<int> _ttlDays;
@@ -674,6 +677,9 @@ void SessionsContent::setupContent() {
   _inner->terminateOne() |
       rpl::start_with_next([=](uint64 hash) { terminateOne(hash); },
                            lifetime());
+
+  _inner->terminateAll() |
+      rpl::start_with_next([=] { terminateAll(); }, lifetime());
 
   _loading.changes() |
       rpl::start_with_next([=](bool value) { _inner->setVisible(!value); },
@@ -789,6 +795,21 @@ void SessionsContent::terminateOne(uint64 hash) {
   terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
 
+void SessionsContent::terminateAll() {
+  const auto weak = Ui::MakeWeak(this);
+  auto callback = [=] {
+    const auto reset = crl::guard(weak, [=] {
+      _authorizations->cancelCurrentRequest();
+      _authorizations->reload();
+    });
+    _authorizations->requestTerminate(
+        [=](const MTPBool &result) { reset(); },
+        [=](const MTP::Error &result) { reset(); });
+    _loading = true;
+  };
+  terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));
+}
+
 SessionsContent::Inner::Inner(QWidget *parent,
                               not_null<Window::SessionController *> controller,
                               rpl::producer<int> ttlDays)
@@ -821,6 +842,17 @@ void SessionsContent::Inner::setupContent() {
   const auto session = &_controller->session();
   _current = ListController::Add(
       content, session, style::margins{0, 0, 0, st::sessionCurrentSkip});
+  const auto terminateWrap =
+      content
+          ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+              content, object_ptr<Ui::VerticalLayout>(content)))
+          ->setDuration(0);
+  const auto terminateInner = terminateWrap->entity();
+  _terminateAll = terminateInner->add(
+      CreateButtonWithIcon(terminateInner, tr::lng_sessions_terminate_all(),
+                           st::infoBlockButton, {.icon = &st::infoIconBlock}));
+  AddSkip(terminateInner);
+  AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 
   const auto incompleteWrap =
       content
@@ -833,6 +865,18 @@ void SessionsContent::Inner::setupContent() {
   _incomplete = ListController::Add(incompleteInner, session);
   AddSkip(incompleteInner);
   AddDividerText(incompleteInner, tr::lng_sessions_incomplete_about());
+
+  const auto listWrap =
+      content
+          ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+              content, object_ptr<Ui::VerticalLayout>(content)))
+          ->setDuration(0);
+  const auto listInner = listWrap->entity();
+  AddSkip(listInner, st::sessionSubtitleSkip);
+  AddSubsectionTitle(listInner, tr::lng_sessions_other_header());
+  _list = ListController::Add(listInner, session);
+  AddSkip(listInner);
+  AddDividerText(listInner, tr::lng_sessions_about_apps());
 
   const auto ttlWrap =
       content
@@ -863,7 +907,10 @@ void SessionsContent::Inner::setupContent() {
               st::defaultBoxDividerLabelPadding))
           ->setDuration(0);
 
+  terminateWrap->toggleOn(rpl::combine(_incomplete->itemsCount(),
+                                       _list->itemsCount(), (_1 + _2) > 0));
   incompleteWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
+  listWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
   ttlWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
   placeholder->toggleOn(_list->itemsCount() | rpl::map(_1 == 0));
 
@@ -874,6 +921,10 @@ void SessionsContent::Inner::showData(const Full &data) {
   _current->showData({&data.current, &data.current + 1});
   _list->showData(data.list);
   _incomplete->showData(data.incomplete);
+}
+
+rpl::producer<> SessionsContent::Inner::terminateAll() const {
+  return _terminateAll->clicks() | rpl::to_empty;
 }
 
 rpl::producer<uint64> SessionsContent::Inner::terminateOne() const {

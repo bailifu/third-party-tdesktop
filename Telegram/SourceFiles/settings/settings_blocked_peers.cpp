@@ -113,6 +113,13 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget *> parent) {
 void Blocked::setupContent() {
   using namespace rpl::mappers;
 
+  const auto listWrap =
+      _container->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+          _container, object_ptr<Ui::VerticalLayout>(_container)));
+  listWrap->toggleOn(
+      _emptinessChanges.events_starting_with(true) | rpl::map(!_1),
+      anim::type::instant);
+
   {
     struct State {
       std::unique_ptr<BlockedBoxController> controller;
