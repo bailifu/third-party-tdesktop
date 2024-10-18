@@ -885,17 +885,15 @@ void SessionsContent::Inner::setupContent() {
 
   AddSkip(ttlInner);
 
-  terminateWrap->toggleOn(rpl::combine(_incomplete->itemsCount(),
-                                       _list->itemsCount(), (_1 + _2) > 0));
+  terminateWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
   incompleteWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
-  ttlWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
+  ttlWrap->toggleOn(_incomplete->itemsCount() | rpl::map(_1 > 0));
 
   Ui::ResizeFitChild(this, content);
 }
 
 void SessionsContent::Inner::showData(const Full &data) {
   _current->showData({&data.current, &data.current + 1});
-  _list->showData(data.list);
   _incomplete->showData(data.incomplete);
 }
 
@@ -904,13 +902,11 @@ rpl::producer<> SessionsContent::Inner::terminateAll() const {
 }
 
 rpl::producer<uint64> SessionsContent::Inner::terminateOne() const {
-  return rpl::merge(_incomplete->terminateRequests(),
-                    _list->terminateRequests());
+  return _incomplete->terminateRequests();
 }
 
 rpl::producer<EntryData> SessionsContent::Inner::showRequests() const {
-  return rpl::merge(_current->showRequests(), _incomplete->showRequests(),
-                    _list->showRequests());
+  return rpl::merge(_current->showRequests(), _incomplete->showRequests());
 }
 
 SessionsContent::ListController::ListController(
