@@ -1775,6 +1775,7 @@ if (build_macstore)
     set(output_name "Telegram Lite")
     set_target_properties(Telegram PROPERTIES
         XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS ${libs_loc}/breakpad/src/client/mac/build/Release
+        VERSION_COMPANY "Telegram FZ-LLC"
     )
     target_link_frameworks(Telegram PRIVATE Breakpad)
     add_custom_command(TARGET Telegram

@@ -485,17 +485,6 @@ void Content::Inner::setupContent() {
   Ui::AddSkip(terminateInner);
   Ui::AddDividerText(terminateInner, tr::lng_settings_logged_in_description());
 
-  const auto listWrap =
-      content
-          ->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-              content, object_ptr<Ui::VerticalLayout>(content)))
-          ->setDuration(0);
-  const auto listInner = listWrap->entity();
-  Ui::AddSkip(listInner, st::sessionSubtitleSkip);
-  Ui::AddSubsectionTitle(listInner, tr::lng_settings_logged_in_title());
-  _list = ListController::Add(listInner, session);
-  Ui::AddSkip(listInner);
-
   const auto skip = st::noContactsHeight / 2;
   const auto placeholder =
       content
@@ -508,7 +497,6 @@ void Content::Inner::setupContent() {
           ->setDuration(0);
 
   terminateWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
-  listWrap->toggleOn(_list->itemsCount() | rpl::map(_1 > 0));
   placeholder->toggleOn(_list->itemsCount() | rpl::map(_1 == 0));
 
   Ui::ResizeFitChild(this, content);
