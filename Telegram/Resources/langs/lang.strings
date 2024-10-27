@@ -1827,15 +1827,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_pinned_media_game" = "游戏 «{game}»";
 "lng_action_pinned_media_story" = "a story";
 "lng_action_game_score#one" = "{from} scored {count} in {game}";
-"lng_action_game_score#other" = "{from} 在 {game} 中获得了 {count} 分";
+"lng_action_game_score#other" = "{from} 获得了 {count} 分在 {game} 中";
 "lng_action_game_you_scored#one" = "You scored {count} in {game}";
-"lng_action_game_you_scored#other" = "您在 {game} 中获得了 {count} 分";
+"lng_action_game_you_scored#other" = "您获得了 {count} 分在 {game} 中";
 "lng_action_game_score_no_game#one" = "{from} scored {count}";
 "lng_action_game_score_no_game#other" = "{from} 获得了 {count} 分";
 "lng_action_game_you_scored_no_game#one" = "You scored {count}";
 "lng_action_game_you_scored_no_game#other" = "您获得了 {count} 分";
-"lng_action_payment_done" = "您已成功向 {user} 转账 {amount}";
-"lng_action_payment_done_for" = "您已成功为 {invoice} 向 {user} 转账 {amount}";
+"lng_action_payment_done" = "您已成功转账 {amount} 向 {user}";
+"lng_action_payment_done_for" = "您已成功转账 {amount} 向 {user} 为 {invoice}";
 "lng_action_payment_init_recurring_for" = "You successfully transferred {amount} to {user} for {invoice} and allowed future recurring payments";
 "lng_action_payment_init_recurring" = "You successfully transferred {amount} to {user} and allowed future recurring payments";
 "lng_action_payment_used_recurring" = "You were charged {amount} via recurring payment";
@@ -3326,7 +3326,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_allow_bot_webview_details" = "More about this bot {emoji}";
 "lng_allow_bot_webview_details_about" = "To launch this web app, you will connect to its website.\n\nIt will be able to access your **IP address** and basic device info.";
 "lng_url_auth_open_confirm" = "您想打开 {link} 吗？";
-"lng_url_auth_login_option" = "以 {user} 身份登录 {domain}";
+"lng_url_auth_login_option" = "登录 {domain} 以 {user} 身份";
 "lng_url_auth_allow_messages" = "允许 {bot} 向我发送消息";
 
 "lng_bot_start" = "开始";
