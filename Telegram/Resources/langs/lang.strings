@@ -3848,7 +3848,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_profile_photo" = "头像";
 "lng_mediaview_profile_public_photo" = "Public Photo";
 "lng_mediaview_profile_photo_by_you" = "Photo set by you";
-"lng_mediaview_file_n_of_amount" = "第 {n} 个 {file}，共 {amount} 个";
+"lng_mediaview_file_n_of_amount" = "{file} 中第 {n} 个，共 {amount} 个";
 "lng_mediaview_n_of_amount" = "第 {n} 张图片，共 {amount} 张";
 "lng_mediaview_doc_image" = "文件";
 "lng_mediaview_today" = "今天 {time}";
