@@ -3913,7 +3913,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_confirm_phone_link_invalid" = "这个链接已损坏或已过期。";
 "lng_confirm_phone_title" = "撤销帐号重置请求";
-"lng_confirm_phone_about" = "某个人通过您的手机号码（{phone）发送了删除您的 Telegram 账号并重置您的两步验证密码的请求。\n\n如果那并非您本人，请输入我们刚刚通过短信给您的手机号码发送的验证码。";
+"lng_confirm_phone_about" = "某个人通过您的手机号码（{phone}）发送了删除您的 Telegram 账号并重置您的两步验证密码的请求。\n\n如果那并非您本人，请输入我们刚刚通过短信给您的手机号码发送的验证码。";
 "lng_confirm_phone_success" = "成功！\n您帐号 {phone} 的删除请求已经被撤销。您现在可以关闭这个窗口。";
 "lng_confirm_phone_send" = "发送";
 "lng_confirm_phone_enter_code" = "请输入验证码。";
@@ -3927,7 +3927,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_read_from_png" = "PNG 图片，{size}";
 "lng_theme_editor_choose_image" = "选择背景图片";
 "lng_theme_editor_choose_name" = "保存主题文件";
-"lng_theme_editor_error" = "编辑器遇到了一个错误 :( 详情请见 'log.txt'";
+"lng_theme_editor_error" = "编辑器遇到了一个错误 详情请见 'log.txt'";
 "lng_theme_editor_sure_close" = "您确定要关闭编辑器吗？您的更改将不会保存。";
 "lng_theme_editor_need_auth" = "您需要登录才能保存您的主题。";
 "lng_theme_editor_need_unlock" = "您需要解锁 Telegram 来保存您的主题。";
