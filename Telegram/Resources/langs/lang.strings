@@ -79,8 +79,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_weekday7" = "周日";
 
 "lng_month_day" = "{month}{day}日";
-"lng_month_day_year" = "{month}{day}日{year}年";
-"lng_month_year" = "{month}{year}年";
+"lng_month_day_year" = "{month}{day}日 {year}年";
+"lng_month_year" = "{month} {year}年";
 
 "lng_calendar_select_days" = "Select days";
 "lng_calendar_start_tip" = "Press and hold to jump to the start.";
