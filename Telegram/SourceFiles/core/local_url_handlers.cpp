@@ -273,12 +273,8 @@ bool SetLanguage(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (match->capturedView(1).isEmpty()) {
-		ShowLanguagesBox(controller);
-	} else {
-		const auto languageId = match->captured(2);
-		Lang::CurrentCloudManager().switchWithWarning(languageId);
-	}
+	Lang::CurrentCloudManager().switchWithWarning(u"zh-hans-beta"_q);
+	
 	if (controller) {
 		controller->window().activate();
 	}
