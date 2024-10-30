@@ -17,8 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
 #include "core/update_checker.h"
+#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
+#include "storage/localstorage.h"
 #include "ui/main_queue_processor.h"
 
 namespace Core {
@@ -559,12 +562,12 @@ int Launcher::executeApplication() {
 }
 
 void Launcher::checkAndSetLanguage() {
-  const auto currentLang = cLang();           // 获取当前语言设置
-  const auto targetLang = u"zh-hans-beta"_q;  // 目标语言
+  const auto currentLang = Lang::Current().id();
+  const auto targetLang = u"zh-hans-beta"_q;
 
   if (currentLang != targetLang) {
-    cSetLang(targetLang);    // 设置新的语言
-    Local::writeSettings();  // 保存设置
+    Lang::Current().switchToId(targetLang);
+    Local::writeSettings();
   }
 }
 
