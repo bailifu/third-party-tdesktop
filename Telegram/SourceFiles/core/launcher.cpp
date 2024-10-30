@@ -17,11 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
 #include "core/update_checker.h"
-#include "lang/lang_instance.h"
-#include "lang/lang_keys.h"
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
-#include "storage/localstorage.h"
 #include "ui/main_queue_processor.h"
 
 namespace Core {
@@ -319,8 +316,6 @@ void Launcher::init() {
   QApplication::setFallbackSessionManagementEnabled(false);
 #endif  // Qt < 6.0.0
 
-  checkAndSetLanguage();
-
   initHook();
 }
 
@@ -559,24 +554,6 @@ int Launcher::executeApplication() {
   Ui::MainQueueProcessor processor;
   base::ConcurrentTimerEnvironment environment;
   return sandbox.start();
-}
-
-void Launcher::checkAndSetLanguage() {
-  const auto currentLang = Lang::Id();
-  const auto targetLang = u"zh-hans-beta"_q;
-
-  if (currentLang != targetLang) {
-    const auto language = Lang::Language{
-        targetLang,                 // id
-        QString(),                  // pluralId
-        QString(),                  // baseId
-        u"Chinese (Simplified)"_q,  // name
-        u"Chinese (Simplified)"_q   // nativeName
-    };
-
-    Lang::GetInstance().switchToId(language);
-    Local::writeSettings();
-  }
 }
 
 }  // namespace Core
