@@ -563,7 +563,9 @@ int Launcher::executeApplication() {
 
 void Launcher::checkAndSetLanguage() {
   constexpr auto kDefaultLanguage = "zh-hans-beta"_cs;
-  Lang::GetInstance().switchToId(kDefaultLanguage);
+  Lang::Language language;
+  language.id = kDefaultLanguage.utf16();
+  Lang::GetInstance().switchToId(language);
 }
 
 }  // namespace Core
