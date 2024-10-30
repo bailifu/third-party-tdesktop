@@ -307,13 +307,6 @@ void Application::run() {
   }
 
   _translator = std::make_unique<Lang::Translator>();
-  _langpack->switchToId(Lang::Language{
-      u"zh-hans-beta"_q,          // id
-      QString(),                  // pluralId
-      QString(),                  // baseId
-      u"Chinese (Simplified)"_q,  // name
-      u"Chinese (Simplified)"_q   // nativeName
-  });
   QCoreApplication::instance()->installTranslator(_translator.get());
 
   style::StartManager(cScale());
