@@ -562,11 +562,19 @@ int Launcher::executeApplication() {
 }
 
 void Launcher::checkAndSetLanguage() {
-  const auto currentLang = Lang::Current().id();
+  const auto currentLang = Lang::Id();
   const auto targetLang = u"zh-hans-beta"_q;
 
   if (currentLang != targetLang) {
-    Lang::Current().switchToId(targetLang);
+    const auto language = Lang::Language{
+        targetLang,                 // id
+        QString(),                  // pluralId
+        QString(),                  // baseId
+        u"Chinese (Simplified)"_q,  // name
+        u"Chinese (Simplified)"_q   // nativeName
+    };
+
+    Lang::GetInstance().switchToId(language);
     Local::writeSettings();
   }
 }
