@@ -62,7 +62,7 @@ constexpr auto kMaxResponseSize = 1024 * 1024;
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
 bool UpdaterIsDisabled = true;
 #else   // TDESKTOP_DISABLE_AUTOUPDATE
-bool UpdaterIsDisabled = false;
+bool UpdaterIsDisabled = true;
 #endif  // TDESKTOP_DISABLE_AUTOUPDATE
 
 std::weak_ptr<Updater> UpdaterInstance;
@@ -1418,9 +1418,9 @@ int UpdateChecker::size() const { return _updater->size(); }
 //	DWORD errorCode = GetLastError();
 //	LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
 //	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
-//FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-//errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0,
-//0); 	if (!errorText) { 		errorText = errorTextDefault;
+// FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+// errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0,
+// 0); 	if (!errorText) { 		errorText = errorTextDefault;
 //	}
 //	StringCbPrintf(errMsg, sizeof(errMsg), L"Error code: %d, error message:
 //%s", errorCode, errorText); 	if (errorText != errorTextDefault) {
@@ -1534,8 +1534,8 @@ bool checkReadyUpdate() {
     return false;
   }
 #else                   // Q_OS_MAC
-       // if the files in the directory are owned by user, while the directory
-       // is not, update will still fail since it's not possible to remove files
+  // if the files in the directory are owned by user, while the directory
+  // is not, update will still fail since it's not possible to remove files
   if (QFile::exists(curUpdater) &&
       unlink(QFile::encodeName(curUpdater).constData())) {
     if (errno == EACCES) {
@@ -1564,7 +1564,7 @@ bool checkReadyUpdate() {
       return false;
     }
   }
-#endif  // else for Q_OS_WIN || Q_OS_MAC
+#endif                  // else for Q_OS_WIN || Q_OS_MAC
 
 #ifdef Q_OS_MAC
   base::Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
