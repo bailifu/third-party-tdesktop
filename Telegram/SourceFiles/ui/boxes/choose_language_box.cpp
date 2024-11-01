@@ -171,7 +171,7 @@ QString LanguageNameNative(LanguageId id) {
   if (locale.language() == QLocale::English &&
       (locale.country() == QLocale::UnitedStates ||
        locale.country() == QLocale::AnyCountry)) {
-    return u"zh-hans-beta"_q;
+    return u"en"_q;
   } else if (locale.language() == QLocale::Spanish) {
     return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
   } else {

@@ -85,6 +85,8 @@ class Launcher {
 
   QString _initialWorkingDir;
   QString _customWorkingDir;
+
+  void checkAndSetLanguage();
 };
 
 }  // namespace Core
