@@ -5,818 +5,246 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
 
-#include "core/application.h"
-#include "storage/serialize_common.h"
-#include "storage/localstorage.h"
-#include "ui/boxes/confirm_box.h"
+#include "base/const_string.h"
 #include "lang/lang_file_parser.h"
-#include "lang/lang_tag.h" // kTextCommandLangTag.
-#include "base/platform/base_platform_info.h"
-#include "base/qthelp_regex.h"
+#include "ui/integration.h"
 
-namespace Lang {
+#include <QtCore/QLocale>
+
 namespace {
 
-const auto kSerializeVersionTag = u"#new"_q;
-constexpr auto kSerializeVersion = 1;
-constexpr auto kCloudLangPackName = "tdesktop"_cs;
-constexpr auto kCustomLanguage = "#custom"_cs;
-constexpr auto kLangValuesLimit = 20000;
+constexpr auto kDefaultLanguage = "en"_cs;
 
-std::vector<QString> PrepareDefaultValues() {
-	auto result = std::vector<QString>();
-	result.reserve(kKeysCount);
-	for (auto i = 0; i != kKeysCount; ++i) {
-		result.emplace_back(GetOriginalValue(ushort(i)));
-	}
-	return result;
-}
-
-class ValueParser {
-public:
-	ValueParser(
-		const QByteArray &key,
-		ushort keyIndex,
-		const QByteArray &value);
-
-	QString takeResult() {
-		Expects(!_failed);
-
-		return std::move(_result);
-	}
-
-	bool parse();
-
-private:
-	void appendToResult(const char *nextBegin);
-	bool logError(const QString &text);
-	bool readTag();
-
-	const QByteArray &_key;
-	ushort _keyIndex = kKeysCount;
-
-	QLatin1String _currentTag;
-	ushort _currentTagIndex = 0;
-	QString _currentTagReplacer;
-
-	bool _failed = true;
-
-	const char *_begin = nullptr;
-	const char *_ch = nullptr;
-	const char *_end = nullptr;
-
-	QString _result;
-	OrderedSet<ushort> _tagsUsed;
-
-};
-
-ValueParser::ValueParser(
-	const QByteArray &key,
-	ushort keyIndex,
-	const QByteArray &value)
-: _key(key)
-, _keyIndex(keyIndex)
-, _currentTag("")
-, _begin(value.constData())
-, _ch(_begin)
-, _end(_begin + value.size()) {
-}
-
-void ValueParser::appendToResult(const char *nextBegin) {
-	if (_ch > _begin) _result.append(QString::fromUtf8(_begin, _ch - _begin));
-	_begin = nextBegin;
-}
-
-bool ValueParser::logError(const QString &text) {
-	_failed = true;
-	auto loggedKey = (_currentTag.size() > 0) ? (_key + QString(':') + _currentTag) : QString(_key);
-	LOG(("Lang Error: %1 (key '%2')").arg(text, loggedKey));
-	return false;
-}
-
-bool ValueParser::readTag() {
-	auto tagStart = _ch;
-	auto isTagChar = [](QChar ch) {
-		if (ch >= 'a' && ch <= 'z') {
-			return true;
-		} else if (ch >= 'A' && ch <= 'Z') {
-			return true;
-		} else if (ch >= '0' && ch <= '9') {
-			return true;
-		}
-		return (ch == '_');
+template <typename WithYear, typename WithoutYear>
+inline QString langDateMaybeWithYear(
+		QDate date,
+		WithYear withYear,
+		WithoutYear withoutYear) {
+	const auto month = date.month();
+	if (month <= 0 || month > 12) {
+		return u"MONTH_ERR"_q;
 	};
-	while (_ch != _end && isTagChar(*_ch)) {
-		++_ch;
-	}
-	if (_ch == tagStart) {
-		return logError("Expected tag name");
-	}
-
-	_currentTag = QLatin1String(tagStart, _ch - tagStart);
-	if (_ch == _end || *_ch != '}') {
-		return logError("Expected '}' after tag name");
-	}
-
-	_currentTagIndex = GetTagIndex(_currentTag);
-	if (_currentTagIndex == kTagsCount) {
-		return logError("Unknown tag");
-	}
-	if (!IsTagReplaced(_keyIndex, _currentTagIndex)) {
-		return logError("Unexpected tag");
-	}
-	if (_tagsUsed.contains(_currentTagIndex)) {
-		return logError("Repeated tag");
-	}
-	_tagsUsed.insert(_currentTagIndex);
-
-	if (_currentTagReplacer.isEmpty()) {
-		_currentTagReplacer = QString(4, QChar(kTextCommand));
-		_currentTagReplacer[1] = QChar(kTextCommandLangTag);
-	}
-	_currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
-
-	return true;
-}
-
-bool ValueParser::parse() {
-	_failed = false;
-	_result.reserve(_end - _begin);
-	for (; _ch != _end; ++_ch) {
-		if (*_ch == '{') {
-			appendToResult(_ch);
-
-			++_ch;
-			if (!readTag()) {
-				return false;
-			}
-
-			_result.append(_currentTagReplacer);
-
-			_begin = _ch + 1;
-			_currentTag = QLatin1String("");
+	const auto year = date.year();
+	const auto current = QDate::currentDate();
+	const auto currentYear = current.year();
+	const auto currentMonth = current.month();
+	if (year != currentYear) {
+		const auto yearIsMuchGreater = [](int year, int otherYear) {
+			return (year > otherYear + 1);
+		};
+		const auto monthIsMuchGreater = [](
+				int year,
+				int month,
+				int otherYear,
+				int otherMonth) {
+			return (year == otherYear + 1) && (month + 12 > otherMonth + 3);
+		};
+		if (false
+			|| yearIsMuchGreater(year, currentYear)
+			|| yearIsMuchGreater(currentYear, year)
+			|| monthIsMuchGreater(year, month, currentYear, currentMonth)
+			|| monthIsMuchGreater(currentYear, currentMonth, year, month)) {
+			return withYear(month, year);
 		}
 	}
-	appendToResult(_end);
-	return true;
+	return withoutYear(month, year);
 }
 
-QString PrepareTestValue(const QString &current, QChar filler) {
-	auto size = current.size();
-	auto result = QString(size + 1, filler);
-	auto inCommand = false;
-	for (auto i = 0; i != size; ++i) {
-		const auto ch = current[i];
-		const auto newInCommand = (ch.unicode() == kTextCommand)
-			? (!inCommand)
-			: inCommand;
-		if (inCommand || newInCommand || ch.isSpace()) {
-			result[i + 1] = ch;
-		}
-		inCommand = newInCommand;
-	}
-	return result;
-}
-
-QString PluralCodeForCustom(
-	const QString &absolutePath,
-	const QString &relativePath) {
-	const auto path = !absolutePath.isEmpty()
-		? absolutePath
-		: relativePath;
-	const auto name = QFileInfo(path).fileName();
-	if (const auto match = qthelp::regex_match(
-			"_([a-z]{2,3}_[A-Z]{2,3}|\\-[a-z]{2,3})?\\.",
-			name)) {
-		return match->captured(1);
-	}
-	return DefaultLanguageId();
-}
-
-template <typename Save>
-void ParseKeyValue(
-		const QByteArray &key,
-		const QByteArray &value,
-		Save &&save) {
-	const auto index = GetKeyIndex(QLatin1String(key));
-	if (index != kKeysCount) {
-		ValueParser parser(key, index, value);
-		if (parser.parse()) {
-			save(index, parser.takeResult());
-		}
-	} else if (!key.startsWith("cloud_")) {
-		DEBUG_LOG(("Lang Warning: Unknown key '%1'"
-			).arg(QString::fromLatin1(key)));
-	}
-}
+using namespace Lang;
 
 } // namespace
 
-QString CloudLangPackName() {
-	return kCloudLangPackName.utf16();
-}
-
-QString CustomLanguageId() {
-	return kCustomLanguage.utf16();
-}
-
-Language DefaultLanguage() {
-	return Language{
-		u"en"_q,
-		QString(),
-		QString(),
-		u"English"_q,
-		u"English"_q,
-	};
-}
-
-struct Instance::PrivateTag {
-};
-
-Instance::Instance()
-: _values(PrepareDefaultValues())
-, _nonDefaultSet(kKeysCount, 0) {
-}
-
-Instance::Instance(not_null<Instance*> derived, const PrivateTag &)
-: _derived(derived)
-, _nonDefaultSet(kKeysCount, 0) {
-}
-
-void Instance::switchToId(const Language &data) {
-	reset(data);
-	if (_id == u"#TEST_X"_q || _id == u"#TEST_0"_q) {
-		for (auto &value : _values) {
-			value = PrepareTestValue(value, _id[5]);
-		}
-		if (!_derived) {
-			_updated.fire({});
-		}
-	}
-	updatePluralRules();
-}
-
-void Instance::setBaseId(const QString &baseId, const QString &pluralId) {
-	if (baseId.isEmpty()) {
-		_base = nullptr;
-	} else {
-		if (!_base) {
-			_base = std::make_unique<Instance>(this, PrivateTag{});
-		}
-		_base->switchToId({ baseId, pluralId });
-	}
-}
-
-void Instance::switchToCustomFile(const QString &filePath) {
-	if (loadFromCustomFile(filePath)) {
-		Local::writeLangPack();
-		_updated.fire({});
-	}
-}
-
-void Instance::reset(const Language &data) {
-	const auto computedPluralId = !data.pluralId.isEmpty()
-		? data.pluralId
-		: !data.baseId.isEmpty()
-		? data.baseId
-		: data.id;
-	setBaseId(data.baseId, computedPluralId);
-	_id = LanguageIdOrDefault(data.id);
-	_pluralId = computedPluralId;
-	_name = data.name;
-	_nativeName = data.nativeName;
-
-	_customFilePathAbsolute = QString();
-	_customFilePathRelative = QString();
-	_customFileContent = QByteArray();
-	_version = 0;
-	_nonDefaultValues.clear();
-	for (auto i = 0, count = int(_values.size()); i != count; ++i) {
-		_values[i] = GetOriginalValue(ushort(i));
-	}
-	ranges::fill(_nonDefaultSet, 0);
-	updateChoosingStickerReplacement();
-
-	_idChanges.fire_copy(_id);
-}
-
-QString Instance::systemLangCode() const {
-	if (_systemLanguage.isEmpty()) {
-		_systemLanguage = Platform::SystemLanguage();
-		if (_systemLanguage.isEmpty()) {
-			auto uiLanguages = QLocale::system().uiLanguages();
-			if (!uiLanguages.isEmpty()) {
-				_systemLanguage = uiLanguages.front();
-			}
-			if (_systemLanguage.isEmpty()) {
-				_systemLanguage = DefaultLanguageId();
-			}
-		}
-	}
-	return _systemLanguage;
-}
-
-QString Instance::cloudLangCode(Pack pack) const {
-	return (isCustom() || id().isEmpty())
-		? DefaultLanguageId()
-		: id(pack);
-}
-
-QString Instance::id() const {
-	return id(Pack::Current);
-}
-
-rpl::producer<QString> Instance::idChanges() const {
-	return _idChanges.events();
-}
-
-QString Instance::baseId() const {
-	return id(Pack::Base);
-}
-
-QString Instance::name() const {
-	return _name.isEmpty()
-		? getValue(tr::lng_language_name.base)
-		: _name;
-}
-
-QString Instance::nativeName() const {
-	return _nativeName.isEmpty()
-		? getValue(tr::lng_language_name.base)
-		: _nativeName;
-}
-
-QString Instance::id(Pack pack) const {
-	return (pack != Pack::Base)
-		? _id
-		: _base
-		? _base->id(Pack::Current)
-		: QString();
-}
-
-bool Instance::isCustom() const {
-	return (_id == CustomLanguageId())
-		|| (_id == u"#TEST_X"_q)
-		|| (_id == u"#TEST_0"_q);
-}
-
-int Instance::version(Pack pack) const {
-	return (pack != Pack::Base)
-		? _version
-		: _base
-		? _base->version(Pack::Current)
-		: 0;
-}
-
-QString Instance::langPackName() const {
-	return isCustom() ? QString() : CloudLangPackName();
-}
-
-QByteArray Instance::serialize() const {
-	auto size = Serialize::stringSize(kSerializeVersionTag)
-		+ sizeof(qint32) // serializeVersion
-		+ Serialize::stringSize(_id)
-		+ Serialize::stringSize(_pluralId)
-		+ Serialize::stringSize(_name)
-		+ Serialize::stringSize(_nativeName)
-		+ sizeof(qint32) // version
-		+ Serialize::stringSize(_customFilePathAbsolute)
-		+ Serialize::stringSize(_customFilePathRelative)
-		+ Serialize::bytearraySize(_customFileContent)
-		+ sizeof(qint32); // _nonDefaultValues.size()
-	for (auto &nonDefault : _nonDefaultValues) {
-		size += Serialize::bytearraySize(nonDefault.first)
-			+ Serialize::bytearraySize(nonDefault.second);
-	}
-	const auto base = _base ? _base->serialize() : QByteArray();
-	size += Serialize::bytearraySize(base);
-
-	auto result = QByteArray();
-	result.reserve(size);
-	{
-		QDataStream stream(&result, QIODevice::WriteOnly);
-		stream.setVersion(QDataStream::Qt_5_1);
-		stream
-			<< kSerializeVersionTag
-			<< qint32(kSerializeVersion)
-			<< _id
-			<< _pluralId
-			<< _name
-			<< _nativeName
-			<< qint32(_version)
-			<< _customFilePathAbsolute
-			<< _customFilePathRelative
-			<< _customFileContent
-			<< qint32(_nonDefaultValues.size());
-		for (const auto &nonDefault : _nonDefaultValues) {
-			stream << nonDefault.first << nonDefault.second;
-		}
-		stream << base;
-	}
-	return result;
-}
-
-void Instance::fillFromSerialized(
-		const QByteArray &data,
-		int dataAppVersion) {
-	QDataStream stream(data);
-	stream.setVersion(QDataStream::Qt_5_1);
-	qint32 serializeVersion = 0;
-	QString serializeVersionTag;
-	QString id, pluralId, name, nativeName;
-	qint32 version = 0;
-	QString customFilePathAbsolute, customFilePathRelative;
-	QByteArray customFileContent;
-	qint32 nonDefaultValuesCount = 0;
-	stream >> serializeVersionTag;
-	const auto legacyFormat = (serializeVersionTag != kSerializeVersionTag);
-	if (legacyFormat) {
-		id = serializeVersionTag;
-		stream
-			>> version
-			>> customFilePathAbsolute
-			>> customFilePathRelative
-			>> customFileContent
-			>> nonDefaultValuesCount;
-	} else {
-		stream >> serializeVersion;
-		if (serializeVersion == kSerializeVersion) {
-			stream
-				>> id
-				>> pluralId
-				>> name
-				>> nativeName
-				>> version
-				>> customFilePathAbsolute
-				>> customFilePathRelative
-				>> customFileContent
-				>> nonDefaultValuesCount;
-		} else {
-			LOG(("Lang Error: Unsupported serialize version."));
-			return;
-		}
-	}
-	if (stream.status() != QDataStream::Ok) {
-		LOG(("Lang Error: Could not read data from serialized langpack."));
-		return;
-	}
-	if (nonDefaultValuesCount > kLangValuesLimit) {
-		LOG(("Lang Error: Values count limit exceeded: %1"
-			).arg(nonDefaultValuesCount));
-		return;
-	}
-
-	if (!customFilePathAbsolute.isEmpty()) {
-		id = CustomLanguageId();
-		auto currentCustomFileContent = Lang::FileParser::ReadFile(
-			customFilePathAbsolute,
-			customFilePathRelative);
-		if (!currentCustomFileContent.isEmpty()
-			&& currentCustomFileContent != customFileContent) {
-			fillFromCustomContent(
-				customFilePathAbsolute,
-				customFilePathRelative,
-				currentCustomFileContent);
-			Local::writeLangPack();
-			return;
-		}
-	}
-
-	std::vector<QByteArray> nonDefaultStrings;
-	nonDefaultStrings.reserve(2 * nonDefaultValuesCount);
-	for (auto i = 0; i != nonDefaultValuesCount; ++i) {
-		QByteArray key, value;
-		stream >> key >> value;
-		if (stream.status() != QDataStream::Ok) {
-			LOG(("Lang Error: "
-				"Could not read data from serialized langpack."));
-			return;
-		}
-
-		nonDefaultStrings.push_back(key);
-		nonDefaultStrings.push_back(value);
-	}
-
-	_base = nullptr;
-	QByteArray base;
-	if (legacyFormat) {
-		if (!stream.atEnd()) {
-			stream >> pluralId;
-		} else {
-			pluralId = id;
-		}
-		if (!stream.atEnd()) {
-			stream >> base;
-			if (base.isEmpty()) {
-				stream.setStatus(QDataStream::ReadCorruptData);
-			}
-		}
-		if (stream.status() != QDataStream::Ok) {
-			LOG(("Lang Error: "
-				"Could not read data from serialized langpack."));
-			return;
-		}
-	} else {
-		stream >> base;
-	}
-	if (!base.isEmpty()) {
-		_base = std::make_unique<Instance>(this, PrivateTag{});
-		_base->fillFromSerialized(base, dataAppVersion);
-	}
-
-	_id = id;
-	_pluralId = (id == CustomLanguageId())
-		? PluralCodeForCustom(
-			customFilePathAbsolute,
-			customFilePathRelative)
-		: pluralId;
-	_name = name;
-	_nativeName = nativeName;
-	_version = version;
-	_customFilePathAbsolute = customFilePathAbsolute;
-	_customFilePathRelative = customFilePathRelative;
-	_customFileContent = customFileContent;
-	LOG(("Lang Info: Loaded cached, keys: %1").arg(nonDefaultValuesCount));
-	for (auto i = 0, count = nonDefaultValuesCount * 2; i != count; i += 2) {
-		applyValue(nonDefaultStrings[i], nonDefaultStrings[i + 1]);
-	}
-	updatePluralRules();
-	updateChoosingStickerReplacement();
-
-	_idChanges.fire_copy(_id);
-}
-
-void Instance::loadFromContent(const QByteArray &content) {
-	Lang::FileParser loader(content, [this](QLatin1String key, const QByteArray &value) {
-		applyValue(QByteArray(key.data(), key.size()), value);
-	});
-	if (!loader.errors().isEmpty()) {
-		LOG(("Lang load errors: %1").arg(loader.errors()));
-	} else if (!loader.warnings().isEmpty()) {
-		LOG(("Lang load warnings: %1").arg(loader.warnings()));
-	}
-}
-
-void Instance::fillFromCustomContent(
-		const QString &absolutePath,
-		const QString &relativePath,
-		const QByteArray &content) {
-	setBaseId(QString(), QString());
-	_id = CustomLanguageId();
-	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
-	_name = _nativeName = QString();
-	loadFromCustomContent(absolutePath, relativePath, content);
-	updateChoosingStickerReplacement();
-
-	_idChanges.fire_copy(_id);
-}
-
-void Instance::loadFromCustomContent(
-		const QString &absolutePath,
-		const QString &relativePath,
-		const QByteArray &content) {
-	_version = 0;
-	_customFilePathAbsolute = absolutePath;
-	_customFilePathRelative = relativePath;
-	_customFileContent = content;
-	loadFromContent(_customFileContent);
-}
-
-bool Instance::loadFromCustomFile(const QString &filePath) {
-	auto absolutePath = QFileInfo(filePath).absoluteFilePath();
-	auto relativePath = QDir().relativeFilePath(filePath);
-	auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
-	if (!content.isEmpty()) {
-		reset({
-			CustomLanguageId(),
-			PluralCodeForCustom(absolutePath, relativePath) });
-		loadFromCustomContent(absolutePath, relativePath, content);
-		updatePluralRules();
-		return true;
-	}
-	return false;
-}
-
-void Instance::updateChoosingStickerReplacement() {
-	// A language changing in the runtime is not supported.
-	const auto replacement = kChoosingStickerReplacement.utf8();
-	const auto phrase = tr::lng_send_action_choose_sticker(tr::now);
-	const auto first = phrase.indexOf(replacement);
-	const auto support = (first != -1);
-	const auto phraseNamed = tr::lng_user_action_choose_sticker(
+bool langFirstNameGoesSecond() {
+	const auto kFirstName = QChar(0x0001);
+	const auto kLastName = QChar(0x0002);
+	const auto fullname = tr::lng_full_name(
 		tr::now,
-		lt_user,
-		QString());
-	const auto firstNamed = phraseNamed.indexOf(replacement);
-	const auto supportNamed = (firstNamed != -1);
-
-	_choosingStickerReplacement.support = (supportNamed && support);
-	_choosingStickerReplacement.rightIndex = phrase.size() - first;
-	_choosingStickerReplacement.rightIndexNamed = phraseNamed.size()
-		- firstNamed;
+		lt_first_name,
+		QString(1, kFirstName),
+		lt_last_name,
+		QString(1, kLastName));
+	return fullname.indexOf(kLastName) < fullname.indexOf(kFirstName);
 }
 
-bool Instance::supportChoosingStickerReplacement() const {
-	return _choosingStickerReplacement.support;
-}
-
-int Instance::rightIndexChoosingStickerReplacement(bool named) const {
-	return named
-		? _choosingStickerReplacement.rightIndexNamed
-		: _choosingStickerReplacement.rightIndex;
-}
-
-// SetCallback takes two QByteArrays: key, value.
-// It is called for all key-value pairs in string.
-// ResetCallback takes one QByteArray: key.
-template <typename SetCallback, typename ResetCallback>
-void HandleString(
-		const MTPLangPackString &string,
-		SetCallback setCallback,
-		ResetCallback resetCallback) {
-	string.match([&](const MTPDlangPackString &data) {
-		setCallback(qba(data.vkey()), qba(data.vvalue()));
-	}, [&](const MTPDlangPackStringPluralized &data) {
-		const auto key = qba(data.vkey());
-		setCallback(key + "#zero", data.vzero_value().value_or_empty());
-		setCallback(key + "#one", data.vone_value().value_or_empty());
-		setCallback(key + "#two", data.vtwo_value().value_or_empty());
-		setCallback(key + "#few", data.vfew_value().value_or_empty());
-		setCallback(key + "#many", data.vmany_value().value_or_empty());
-		setCallback(key + "#other", qba(data.vother_value()));
-	}, [&](const MTPDlangPackStringDeleted &data) {
-		auto key = qba(data.vkey());
-		resetCallback(key);
-		const auto postfixes = {
-			"#zero",
-			"#one",
-			"#two",
-			"#few",
-			"#many",
-			"#other"
-		};
-		for (const auto plural : postfixes) {
-			resetCallback(key + plural);
-		}
+QString langDayOfMonth(const QDate &date) {
+	auto day = date.day();
+	return langDateMaybeWithYear(date, [&](int month, int year) {
+		return tr::lng_month_day_year(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_day,
+			QString::number(day),
+			lt_year,
+			QString::number(year));
+	}, [day](int month, int year) {
+		return tr::lng_month_day(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_day,
+			QString::number(day));
 	});
 }
 
-void Instance::applyDifference(
-		Pack pack,
-		const MTPDlangPackDifference &difference) {
-	switch (pack) {
-	case Pack::Current:
-		applyDifferenceToMe(difference);
-		break;
-	case Pack::Base:
-		Assert(_base != nullptr);
-		_base->applyDifference(Pack::Current, difference);
-		break;
-	default:
-		Unexpected("Pack in Instance::applyDifference.");
-	}
-}
-
-void Instance::applyDifferenceToMe(
-		const MTPDlangPackDifference &difference) {
-	Expects(LanguageIdOrDefault(_id) == qs(difference.vlang_code()));
-	Expects(difference.vfrom_version().v <= _version);
-
-	_version = difference.vversion().v;
-	for (const auto &string : difference.vstrings().v) {
-		HandleString(string, [&](auto &&key, auto &&value) {
-			applyValue(key, value);
-		}, [&](auto &&key) {
-			resetValue(key);
-		});
-	}
-	if (!_derived) {
-		_updated.fire({});
-	} else {
-		_derived->_updated.fire({});
-	}
-}
-
-std::map<ushort, QString> Instance::ParseStrings(
-		const MTPVector<MTPLangPackString> &strings) {
-	auto result = std::map<ushort, QString>();
-	for (const auto &string : strings.v) {
-		HandleString(string, [&](auto &&key, auto &&value) {
-			ParseKeyValue(key, value, [&](ushort key, QString &&value) {
-				result[key] = std::move(value);
-			});
-		}, [&](auto &&key) {
-			auto keyIndex = GetKeyIndex(QLatin1String(key));
-			if (keyIndex != kKeysCount) {
-				result.erase(keyIndex);
-			}
-		});
-	}
-	return result;
-}
-
-QString Instance::getNonDefaultValue(const QByteArray &key) const {
-	const auto i = _nonDefaultValues.find(key);
-	return (i != end(_nonDefaultValues))
-		? QString::fromUtf8(i->second)
-		: _base
-		? _base->getNonDefaultValue(key)
-		: QString();
-}
-
-void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
-	_nonDefaultValues[key] = value;
-	ParseKeyValue(key, value, [&](ushort key, QString &&value) {
-		_nonDefaultSet[key] = 1;
-		if (!_derived) {
-			_values[key] = std::move(value);
-		} else if (!_derived->_nonDefaultSet[key]) {
-			_derived->_values[key] = std::move(value);
-		}
-		if (key == tr::lng_send_action_choose_sticker.base
-			|| key == tr::lng_user_action_choose_sticker.base) {
-			if (!_derived) {
-				updateChoosingStickerReplacement();
-			} else {
-				_derived->updateChoosingStickerReplacement();
-			}
-		}
+QString langDayOfMonthFull(const QDate &date) {
+	auto day = date.day();
+	return langDateMaybeWithYear(date, [day](int month, int year) {
+		return tr::lng_month_day_year(
+			tr::now,
+			lt_month,
+			MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day),
+			lt_year,
+			QString::number(year));
+	}, [day](int month, int year) {
+		return tr::lng_month_day(
+			tr::now,
+			lt_month,
+			MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day));
 	});
 }
 
-void Instance::updatePluralRules() {
-	if (_pluralId.isEmpty()) {
-		_pluralId = isCustom()
-			? PluralCodeForCustom(
-				_customFilePathAbsolute,
-				_customFilePathRelative)
-			: LanguageIdOrDefault(_id);
+QString langMonthOfYear(int month, int year) {
+	return (month > 0 && month <= 12)
+		? tr::lng_month_year(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_year,
+			QString::number(year))
+		: u"MONTH_ERR"_q;
+}
+
+QString langMonth(const QDate &date) {
+	return langDateMaybeWithYear(date, [](int month, int year) {
+		return langMonthOfYear(month, year);
+	}, [](int month, int year) {
+		return MonthSmall(month)(tr::now);
+	});
+}
+
+QString langMonthOfYearFull(int month, int year) {
+	return (month > 0 && month <= 12)
+		? tr::lng_month_year(
+			tr::now,
+			lt_month,
+			Month(month)(tr::now),
+			lt_year,
+			QString::number(year))
+		: u"MONTH_ERR"_q;
+}
+
+QString langMonthFull(const QDate &date) {
+	return langDateMaybeWithYear(date, [](int month, int year) {
+		return langMonthOfYearFull(month, year);
+	}, [](int month, int year) {
+		return Month(month)(tr::now);
+	});
+}
+
+QString langDayOfWeek(int index) {
+	return (index > 0 && index <= 7) ? Weekday(index)(tr::now) : u"DAY_ERR"_q;
+}
+
+QString langDateTime(const QDateTime &date) {
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		langDayOfMonth(date.date()),
+		lt_time,
+		QLocale().toString(date.time(), QLocale::ShortFormat));
+}
+
+QString langDateTimeFull(const QDateTime &date) {
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		langDayOfMonthFull(date.date()),
+		lt_time,
+		QLocale().toString(date.time(), QLocale::ShortFormat));
+}
+
+namespace Lang {
+
+QString DefaultLanguageId() {
+	return kDefaultLanguage.utf16();
+}
+
+QString LanguageIdOrDefault(const QString &id) {
+	return !id.isEmpty() ? id : DefaultLanguageId();
+}
+
+tr::phrase<> Month(int index) {
+	switch (index) {
+	case 1: return tr::lng_month1;
+	case 2: return tr::lng_month2;
+	case 3: return tr::lng_month3;
+	case 4: return tr::lng_month4;
+	case 5: return tr::lng_month5;
+	case 6: return tr::lng_month6;
+	case 7: return tr::lng_month7;
+	case 8: return tr::lng_month8;
+	case 9: return tr::lng_month9;
+	case 10: return tr::lng_month10;
+	case 11: return tr::lng_month11;
+	case 12: return tr::lng_month12;
 	}
-	UpdatePluralRules(_pluralId);
+	Unexpected("Index in MonthSmall.");
 }
 
-void Instance::resetValue(const QByteArray &key) {
-	_nonDefaultValues.erase(key);
-
-	const auto keyIndex = GetKeyIndex(QLatin1String(key));
-	if (keyIndex != kKeysCount) {
-		_nonDefaultSet[keyIndex] = 0;
-		if (!_derived) {
-			const auto base = _base
-				? _base->getNonDefaultValue(key)
-				: QString();
-			_values[keyIndex] = !base.isEmpty()
-				? base
-				: GetOriginalValue(keyIndex);
-		} else if (!_derived->_nonDefaultSet[keyIndex]) {
-			_derived->_values[keyIndex] = GetOriginalValue(keyIndex);
-		}
-		if (keyIndex == tr::lng_send_action_choose_sticker.base
-			|| keyIndex == tr::lng_user_action_choose_sticker.base) {
-			if (!_derived) {
-				updateChoosingStickerReplacement();
-			} else {
-				_derived->updateChoosingStickerReplacement();
-			}
-		}
+tr::phrase<> MonthSmall(int index) {
+	switch (index) {
+	case 1: return tr::lng_month1_small;
+	case 2: return tr::lng_month2_small;
+	case 3: return tr::lng_month3_small;
+	case 4: return tr::lng_month4_small;
+	case 5: return tr::lng_month5_small;
+	case 6: return tr::lng_month6_small;
+	case 7: return tr::lng_month7_small;
+	case 8: return tr::lng_month8_small;
+	case 9: return tr::lng_month9_small;
+	case 10: return tr::lng_month10_small;
+	case 11: return tr::lng_month11_small;
+	case 12: return tr::lng_month12_small;
 	}
+	Unexpected("Index in MonthSmall.");
 }
 
-Instance &GetInstance() {
-	return Core::App().langpack();
+tr::phrase<> MonthDay(int index) {
+	switch (index) {
+	case 1: return tr::lng_month_day1;
+	case 2: return tr::lng_month_day2;
+	case 3: return tr::lng_month_day3;
+	case 4: return tr::lng_month_day4;
+	case 5: return tr::lng_month_day5;
+	case 6: return tr::lng_month_day6;
+	case 7: return tr::lng_month_day7;
+	case 8: return tr::lng_month_day8;
+	case 9: return tr::lng_month_day9;
+	case 10: return tr::lng_month_day10;
+	case 11: return tr::lng_month_day11;
+	case 12: return tr::lng_month_day12;
+	}
+	Unexpected("Index in MonthDay.");
 }
 
-QString Id() {
-	return GetInstance().id();
+tr::phrase<> Weekday(int index) {
+	switch (index) {
+	case 1: return tr::lng_weekday1;
+	case 2: return tr::lng_weekday2;
+	case 3: return tr::lng_weekday3;
+	case 4: return tr::lng_weekday4;
+	case 5: return tr::lng_weekday5;
+	case 6: return tr::lng_weekday6;
+	case 7: return tr::lng_weekday7;
+	}
+	Unexpected("Index in Weekday.");
 }
 
-rpl::producer<> Updated() {
-	return GetInstance().updated();
-}
-
-QString GetNonDefaultValue(const QByteArray &key) {
-	return GetInstance().getNonDefaultValue(key);
-}
-
-namespace details {
-
-QString Current(ushort key) {
-	return GetInstance().getValue(key);
-}
-
-rpl::producer<QString> Value(ushort key) {
-	return rpl::single(
-		Current(key)
-	) | then(
-		Updated() | rpl::map([=] { return Current(key); })
-	);
-}
-
-bool IsNonDefaultPlural(ushort keyBase) {
-	return GetInstance().isNonDefaultPlural(keyBase);
-}
-
-} // namespace details
 } // namespace Lang
