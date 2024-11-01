@@ -1071,7 +1071,7 @@ void readLangPack() {
   langpack.stream >> data;
   if (langpack.stream.status() == QDataStream::Ok) {
     Lang::GetInstance().fillFromSerialized(data, langpack.version);
-    Lang::GetInstance().switchToId({u"zh-hans-beta"_q, QString(), QString(),
+    Lang::GetInstance().switchToId({u"en"_q, QString(), QString(),
                                     u"Chinese (Simplified)"_q,
                                     u"Chinese (Simplified)"_q});
   }
