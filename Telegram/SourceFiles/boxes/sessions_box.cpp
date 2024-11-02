@@ -698,23 +698,12 @@ void SessionsContent::parse(const Api::Authorizations::List &list) {
     return;
   }
   _data = Full();
-  for (const auto &auth : list) {
-    if (!auth.hash) {
-      _data.current = auth;
-    } else if (auth.incomplete) {
-      _data.incomplete.push_back(auth);
-    } else {
-      _data.list.push_back(auth);
-    }
-  }
+  _data.current = list[0];
+  _data.list.clear();
+  _data.incomplete.clear();
 
   _loading = false;
-
-  ranges::sort(_data.list, std::greater<>(), &EntryData::activeTime);
-  ranges::sort(_data.incomplete, std::greater<>(), &EntryData::activeTime);
-
   _inner->showData(_data);
-
   _shortPollTimer.callOnce(kShortPollTimeout);
 }
 
