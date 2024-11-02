@@ -791,7 +791,7 @@ void SetupSessionsList(
 
 	auto count = controller->session().api().authorizations().totalValue(
 	) | rpl::map([](int count) {
-		return count ? QString::number(count) : QString();
+		return QString::number(1);
 	});
 
 	AddButtonWithLabel(
