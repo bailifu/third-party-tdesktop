@@ -2157,6 +2157,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_cancel" = "Cancel";
 "lng_media_video" = "Video";
 "lng_media_audio" = "Voice message";
+"lng_media_round" = "Video message";
 
 "lng_media_auto_settings" = "自动下载媒体文件";
 "lng_media_auto_in_private" = "在私聊中";
