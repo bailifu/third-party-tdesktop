@@ -79,6 +79,7 @@ void ShowReportMessageBox(
 	auto performRequest = [=](
 			const auto &repeatRequest,
 			Data::ReportInput reportInput) -> void {
+		constexpr auto kToastDuration = crl::time(4000);
 		report(reportInput, [=](const Api::ReportResult &result) {
 			if (!result.error.isEmpty()) {
 				if (result.error == u"MESSAGE_ID_REQUIRED"_q) {
@@ -198,7 +199,6 @@ void ShowReportMessageBox(
 					}
 				}));
 			} else if (result.successful) {
-				constexpr auto kToastDuration = crl::time(4000);
 				show->showToast(
 					tr::lng_report_thanks(tr::now),
 					kToastDuration);
