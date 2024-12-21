@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/channel_statistics/earn/info_channel_earn_list.h"
+#include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_text.h"
@@ -967,6 +968,8 @@ private:
 		not_null<UserData*> user);
 	Ui::MultiSlideTracker fillChannelButtons(
 		not_null<ChannelData*> channel);
+	Ui::MultiSlideTracker fillDiscussionButtons(
+		not_null<ChannelData*> channel);
 
 	void addReportReaction(Ui::MultiSlideTracker &tracker);
 	void addReportReaction(
@@ -1238,19 +1241,19 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			int rightSkip) {
 		const auto parent = label->parentWidget();
 		rpl::combine(
+			result->widthValue(),
 			label->geometryValue(),
 			button->sizeValue()
-		) | rpl::start_with_next([=](const QRect &, const QSize &buttonSize) {
+		) | rpl::start_with_next([=](int width, QRect, QSize buttonSize) {
 			const auto s = parent->size();
 			button->moveToRight(
 				rightSkip,
-				(s.height() - buttonSize.height()) / 2);
-			label->resizeToWidth(
-				s.width()
-					- rightSkip
-					- label->geometry().left()
-					- st::lineWidth * 2
-					- buttonSize.width());
+				(parent->height() - buttonSize.height()) / 2);
+			label->resizeToWidth(width
+				- rightSkip
+				- label->geometry().left()
+				- st::lineWidth * 2
+				- buttonSize.width());
 		}, button->lifetime());
 	};
 	const auto controller = _controller->parentController();
@@ -1915,7 +1918,11 @@ void DetailsFiller::setupMainButtons() {
 			return fillUserButtons(user);
 		});
 	} else if (const auto channel = _peer->asChannel()) {
-		if (!channel->isMegagroup()) {
+		if (channel->isMegagroup()) {
+			wrapButtons([=] {
+				return fillDiscussionButtons(channel);
+			});
+		} else {
 			wrapButtons([=] {
 				return fillChannelButtons(channel);
 			});
@@ -2004,6 +2011,9 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	using namespace rpl::mappers;
 
 	Ui::MultiSlideTracker tracker;
+	if (user->isSelf()) {
+		return tracker;
+	}
 	auto window = _controller->parentController();
 
 	auto addSendMessageButton = [&] {
@@ -2028,24 +2038,7 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 			tracker);
 	};
 
-	if (user->isSelf()) {
-		auto separator = _wrap->add(object_ptr<Ui::SlideWrap<>>(
-			_wrap,
-			object_ptr<Ui::PlainShadow>(_wrap),
-			st::infoProfileSeparatorPadding)
-		)->setDuration(
-			st::infoSlideDuration
-		);
-
-		addSendMessageButton();
-
-		separator->toggleOn(
-			std::move(tracker).atLeastOneShownValue()
-		);
-	} else {
-		addSendMessageButton();
-	}
-
+	addSendMessageButton();
 	addReportReaction(tracker);
 
 	return tracker;
@@ -2075,6 +2068,37 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 		tr::lng_profile_view_channel(),
 		std::move(viewChannelVisible),
 		std::move(viewChannel),
+		tracker);
+
+	return tracker;
+}
+
+Ui::MultiSlideTracker DetailsFiller::fillDiscussionButtons(
+		not_null<ChannelData*> channel) {
+	using namespace rpl::mappers;
+
+	Ui::MultiSlideTracker tracker;
+	auto window = _controller->parentController();
+	auto viewDiscussionVisible = rpl::combine(
+		_controller->wrapValue(),
+		window->dialogsEntryStateValue()
+	) | rpl::map([=](Wrap wrap, const Dialogs::EntryState &state) {
+		const auto history = state.key.history();
+		return (wrap == Wrap::Side)
+			&& (state.section == Dialogs::EntryState::Section::Replies)
+			&& history
+			&& (history->peer == channel);
+	});
+	auto viewDiscussion = [=] {
+		window->showPeerHistory(
+			channel,
+			Window::SectionShow::Way::Forward);
+	};
+	AddMainButton(
+		_wrap,
+		tr::lng_profile_view_discussion(),
+		std::move(viewDiscussionVisible),
+		std::move(viewDiscussion),
 		tracker);
 
 	return tracker;
@@ -2683,6 +2707,43 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 	result->entity()->add(CreateSkipWidget(result));
 
 	return result;
+}
+
+Cover *AddCover(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Controller*> controller,
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic) {
+	const auto result = topic
+		? container->add(object_ptr<Cover>(
+			container,
+			controller->parentController(),
+			topic))
+		: container->add(object_ptr<Cover>(
+			container,
+			controller->parentController(),
+			peer));
+	result->showSection(
+	) | rpl::start_with_next([=](Section section) {
+		controller->showSection(topic
+			? std::make_shared<Info::Memento>(topic, section)
+			: std::make_shared<Info::Memento>(peer, section));
+	}, result->lifetime());
+	result->setOnlineCount(rpl::single(0));
+	return result;
+}
+
+void AddDetails(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Controller*> controller,
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		Origin origin) {
+	if (topic) {
+		container->add(SetupDetails(controller, container, topic));
+	} else {
+		container->add(SetupDetails(controller, container, peer, origin));
+	}
 }
 
 } // namespace Profile
