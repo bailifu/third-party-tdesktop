@@ -3,43 +3,42 @@ name: Windows.
 on:
   push:
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+      - "docs/**"
+      - "**.md"
+      - "changelog.txt"
+      - "LEGAL"
+      - "LICENSE"
+      - ".github/**"
+      - "!.github/workflows/win.yml"
+      - "lib/xdg/**"
+      - "snap/**"
+      - "Telegram/build/docker/**"
+      - "Telegram/Resources/uwp/**"
+      - "Telegram/SourceFiles/platform/linux/**"
+      - "Telegram/SourceFiles/platform/mac/**"
+      - "Telegram/Telegram/**"
+      - "Telegram/configure.sh"
+      - "Telegram/Telegram.plist"
   pull_request:
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+      - "docs/**"
+      - "**.md"
+      - "changelog.txt"
+      - "LEGAL"
+      - "LICENSE"
+      - ".github/**"
+      - "!.github/workflows/win.yml"
+      - "lib/xdg/**"
+      - "snap/**"
+      - "Telegram/build/docker/**"
+      - "Telegram/Resources/uwp/**"
+      - "Telegram/SourceFiles/platform/linux/**"
+      - "Telegram/SourceFiles/platform/mac/**"
+      - "Telegram/Telegram/**"
+      - "Telegram/configure.sh"
+      - "Telegram/Telegram.plist"
 
 jobs:
-
   windows:
     name: Windows
     runs-on: windows-2022
@@ -47,7 +46,7 @@ jobs:
     strategy:
       matrix:
         arch: [Win32, x64]
-        generator: ["", "Ninja Multi-Config"]
+        generator: ["Ninja Multi-Config"]
 
     env:
       UPLOAD_ARTIFACT: "true"
