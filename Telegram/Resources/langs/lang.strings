@@ -5976,50 +5976,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_apps_which" = "这里包括哪些应用？ {link}";
 "lng_bot_apps_which_link" = "了解 >";
 
-"lng_popular_apps_info_title" = "Top Mini Apps";
-"lng_popular_apps_info_text" = "This catalogue ranks mini apps based on their daily revenue, measured in Stars. To be listed, developers must set their main mini apps in {bot} (as described {link}), have over **1,000** daily users, and earn a daily revenue above **1,000** Stars, based on the weekly average.";
+"lng_popular_apps_info_title" = "热门小程序";
+"lng_popular_apps_info_text" = "此目录根据小程序的日常收入排名，收入以星星为单位。要列入名单，开发者必须在{bot}中设置他们的主要小程序（如{link}所述），拥有超过**1,000**日常用户，并且日常收入超过**1,000**星星，基于周平均值。";
 "lng_popular_apps_info_bot" = "@botfather";
-"lng_popular_apps_info_here" = "here";
+"lng_popular_apps_info_here" = "这里";
 "lng_popular_apps_info_url" = "https://core.telegram.org/bots/webapps#launching-the-main-mini-app";
-"lng_popular_apps_info_confirm" = "Understood";
+"lng_popular_apps_info_confirm" = "明白";
 
-"lng_font_box_title" = "Choose font family";
-"lng_font_default" = "Default";
-"lng_font_system" = "System font";
-"lng_font_not_found" = "Font not found.";
+"lng_font_box_title" = "选择字体系列";
+"lng_font_default" = "默认";
+"lng_font_system" = "系统字体";
+"lng_font_not_found" = "未找到字体。";
 
-"lng_search_tab_my_messages" = "My Messages";
-"lng_search_tab_this_topic" = "This Topic";
-"lng_search_tab_this_chat" = "This Chat";
-"lng_search_tab_this_channel" = "This Channel";
-"lng_search_tab_this_group" = "This Group";
-"lng_search_tab_public_posts" = "Public Posts";
-"lng_search_tab_no_results" = "No Results";
-"lng_search_tab_no_results_text" = "There were no results for \"{query}\".";
-"lng_search_tab_no_results_retry" = "Try another hashtag.";
-"lng_search_tab_by_hashtag" = "Enter a hashtag to find messages containing it.";
+"lng_search_tab_my_messages" = "我的消息";
+"lng_search_tab_this_topic" = "这个主题";
+"lng_search_tab_this_chat" = "这个聊天";
+"lng_search_tab_this_channel" = "这个频道";
+"lng_search_tab_this_group" = "这个群组";
+"lng_search_tab_public_posts" = "公共帖子";
+"lng_search_tab_no_results" = "无结果";
+"lng_search_tab_no_results_text" = "对于 \"{query}\" 没有结果。";
+"lng_search_tab_no_results_retry" = "尝试另一个标签。";
+"lng_search_tab_by_hashtag" = "输入一个标签以找到包含它的消息。";
 
-"lng_contact_details_button" = "View Contact";
-"lng_contact_details_title" = "Contact details";
-"lng_contact_details_phone" = "Phone";
-"lng_contact_details_phone_main" = "Main Phone";
-"lng_contact_details_phone_home" = "Home Phone";
-"lng_contact_details_phone_mobile" = "Mobile Phone";
-"lng_contact_details_phone_work" = "Work Phone";
-"lng_contact_details_phone_other" = "Other Phone";
-"lng_contact_details_email" = "Email";
-"lng_contact_details_address" = "Address";
-"lng_contact_details_url" = "URL";
-"lng_contact_details_note" = "Note";
-"lng_contact_details_birthday" = "Birthday";
-"lng_contact_details_organization" = "Organization";
+"lng_contact_details_button" = "查看联系人";
+"lng_contact_details_title" = "联系人详细信息";
+"lng_contact_details_phone" = "电话";
+"lng_contact_details_phone_main" = "主要电话";
+"lng_contact_details_phone_home" = "家庭电话";
+"lng_contact_details_phone_mobile" = "移动电话";
+"lng_contact_details_phone_work" = "工作电话";
+"lng_contact_details_phone_other" = "其他电话";
+"lng_contact_details_email" = "电子邮件";
+"lng_contact_details_address" = "地址";
+"lng_contact_details_url" = "网址";
+"lng_contact_details_note" = "备注";
+"lng_contact_details_birthday" = "生日";
+"lng_contact_details_organization" = "组织";
 
-"lng_qr_box_quality" = "Quality";
-"lng_qr_box_quality1" = "Normal";
-"lng_qr_box_quality2" = "High";
-"lng_qr_box_quality3" = "Very High";
-"lng_qr_box_transparent_background" = "Transparent Background";
-"lng_qr_box_font_size" = "Font size";
+"lng_qr_box_quality" = "质量";
+"lng_qr_box_quality1" = "普通";
+"lng_qr_box_quality2" = "高";
+"lng_qr_box_quality3" = "非常高";
+"lng_qr_box_transparent_background" = "透明背景";
+"lng_qr_box_font_size" = "字体大小";
 
 // Wnd specific
 
