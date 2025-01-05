@@ -856,7 +856,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_ttl_after_about" = "如果启用，所有新消息在您开始的新对话中将自动删除。您也可以 {link}。";
 "lng_settings_ttl_after_about_link" = "应用此设置到现有对话";
 "lng_settings_ttl_after_subtitle" = "自毁计时器";
-"lng_settings_ttl_after_sure" = "您确定要使所有新私聊和您创建的新群组中的消息在发送后自动删除吗？";
+"lng_settings_ttl_after_sure" = "您确定要使所有新私聊和您创建的新群组中的消息在发送后自动删除吗？所有新消息在发送后 {after_duration} 后将被删除。";
 "lng_settings_ttl_after_toast" = "所有新对话中的消息将在发送后自动删除 {after_duration} 后。";
 
 "lng_settings_ttl_select_chats_sorry" = "抱歉，您不能在此对话中设置自毁计时器。";
