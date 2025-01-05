@@ -1855,11 +1855,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_participant_filter" = "搜索";
 "lng_participant_invite" = "邀请";
-"lng_participant_invite_history" = "Show the last 100 messages";
-"lng_participant_invite_sure" = "Are you sure you want to add **{user}** to **{group}**?";
-"lng_participant_invite_sure_many#one" = "Are you sure you want to add {count} member to **{group}**?";
-"lng_participant_invite_sure_many#other" = "Are you sure you want to add {count} members to **{group}**?";
-"lng_participant_invite_sorry#one" = "Sorry, you can only add the first {count} subscriber to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
+"lng_participant_invite_history" = "显示最后 100 条消息";
+"lng_participant_invite_sure" = "您确定要将 **{user}** 添加到 **{group}** 吗？";
+"lng_participant_invite_sure_many#one" = "您确定要将 {count} 位成员添加到 **{group}** 吗？";
+"lng_participant_invite_sure_many#other" = "您确定要将 {count} 位成员添加到 **{group}** 吗？";
+"lng_participant_invite_sorry#one" = "抱歉，您个人只能在频道未满 {count} 位订阅者之前，可以手动拉人进频道。\n\n现在开始，人们需要通过邀请链接才能加入。";
 "lng_participant_invite_sorry#other" = "抱歉，您个人只能在频道未满 {count} 位订阅者之前，可以手动拉人进频道。\n\n现在开始，人们需要通过邀请链接才能加入。";
 
 "lng_create_group_back" = "返回";
@@ -1888,7 +1888,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_channel_link_too_short" = "抱歉，该链接过短";
 "lng_create_channel_link_bad_symbols" = "只允许使用 a-z, 0-9 和下划线。";
 "lng_create_channel_link_available" = "该链接可用";
-"lng_create_channel_link_pending" = "Checking name...";
+"lng_create_channel_link_pending" = "检查名称...";
 "lng_create_channel_link_copied" = "链接已复制到剪贴板";
 
 "lng_failed_add_participant" = "无法邀请这位用户。请稍后再试。";
@@ -1903,16 +1903,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_leave_group" = "您确定要退出此群组吗？";
 "lng_sure_delete_group" = "您确定要删除此群组？所有成员将会被移除且所有消息将会被清空。";
 "lng_sure_delete_saved_messages" = "您确定要删除所有收藏的消息？\n\n此操作不可撤销。";
-"lng_no_clear_history_channel" = "In channels you can enable auto-delete for messages.";
-"lng_no_clear_history_group" = "In public groups you can enable auto-delete for messages.";
-"lng_sure_delete_by_date_one" = "Are you sure you want to delete all messages for **{date}**?\n\nThis action cannot be undone.";
-"lng_sure_delete_by_date_many" = "Are you sure you want to delete all messages for the **{days}**?\n\nThis action cannot be undone.";
-"lng_sure_delete_selected_days#one" = "{count} selected day";
-"lng_sure_delete_selected_days#other" = "{count} selected days";
+"lng_no_clear_history_channel" = "在频道中，您可以启用消息的自动删除功能。";
+"lng_no_clear_history_group" = "在公共群组中，您可以启用消息的自动删除功能。";
+"lng_sure_delete_by_date_one" = "您确定要删除 **{date}** 的所有消息吗？\n\n此操作不可撤销。";
+"lng_sure_delete_by_date_many" = "您确定要删除 **{days}** 的所有消息吗？\n\n此操作不可撤销。";
+"lng_sure_delete_selected_days#one" = "{count} 选定的日子";
+"lng_sure_delete_selected_days#other" = "{count} 选定的日子";
 
 "lng_message_empty" = "无消息";
 "lng_message_unsupported" = "当前 Telegram 版本不支持查看此消息。请在 设置 里更新到最新版本或在这里下载： {link}";
-"lng_message_not_found" = "Message doesn't exist.";
+"lng_message_not_found" = "消息不存在。";
 
 "lng_duration_minsec_minutes#one" = "{count} min";
 "lng_duration_minsec_minutes#other" = "{count}分";
@@ -1920,17 +1920,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_duration_minsec_seconds#other" = "{count}秒";
 "lng_duration_minutes_seconds" = "{minutes_count}{seconds_count}";
 
-"lng_action_invite_user" = "{from} invited {user} to {chat}";
-"lng_action_invite_users_many" = "{from} invited {users} to {chat}";
-"lng_action_invite_user_chat" = "the video chat";
-"lng_action_invite_users_and_one" = "{accumulated}, {user}";
-"lng_action_invite_users_and_last" = "{accumulated} and {user}";
-"lng_action_group_call_started_group" = "{from} started a video chat";
-"lng_action_group_call_started_channel" = "Live stream started";
-"lng_action_group_call_scheduled_group" = "{from} scheduled a video chat for {date}";
-"lng_action_group_call_scheduled_channel" = "Live stream scheduled for {date}";
-"lng_action_group_call_finished" = "Live stream finished ({duration})";
-"lng_action_group_call_finished_group" = "{from} ended the video chat ({duration})";
+"lng_action_invite_user" = "{from} 邀请了 {user} 加入 {chat}";
+"lng_action_invite_users_many" = "{from} 邀请了 {users} 加入 {chat}";
+"lng_action_invite_user_chat" = "视频聊天";
+"lng_action_invite_users_and_one" = "{accumulated}，{user}";
+"lng_action_invite_users_and_last" = "{accumulated} 和 {user}";
+"lng_action_group_call_started_group" = "{from} 开始了视频聊天";
+"lng_action_group_call_started_channel" = "直播开始了";
+"lng_action_group_call_scheduled_group" = "{from} 为 {date} 安排了视频聊天";
+"lng_action_group_call_scheduled_channel" = "为 {date} 安排了直播";
+"lng_action_group_call_finished" = "直播结束了 ({duration})";
+"lng_action_group_call_finished_group" = "{from} 结束了视频聊天 ({duration})";
 "lng_action_add_user" = "{from} 邀请了 {user}";
 "lng_action_add_users_many" = "{from} 邀请了 {users}";
 "lng_action_add_users_and_one" = "{accumulated}，{user}";
