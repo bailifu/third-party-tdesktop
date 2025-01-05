@@ -3475,7 +3475,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_block_done" = "{user} 已被屏蔽。";
 "lng_new_contact_add" = "加为联系人";
 "lng_new_contact_share" = "分享我的手机号码";
-"lng_new_contact_share_sure" = "您是否想与 {user} 分享您的手机号码 {phone}？";
+"lng_new_contact_share_sure" = "您是否想分享您的手机号码 {phone} 与 {user} ？";
 "lng_new_contact_share_done" = "{user} 现在可以看到您的手机号码。";
 "lng_new_contact_add_name" = "将 {user} 添加到联系人列表";
 "lng_new_contact_add_done" = "{user} 现在已位于您的联系人列表中。";
@@ -3486,7 +3486,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_about_status_link" = "Telegram Premium";
 "lng_from_request_title_channel" = "您加入请求的回应";
 "lng_from_request_title_group" = "您加入请求的回应";
-"lng_from_request_body" = "您收到这条消息是因为您在 {date} 请求加入 {name}。";
+"lng_from_request_body" = "您收到这条消息是因为您请求加入 {name} 在 {date} 。";
 "lng_from_request_understand" = "我明白";
 "lng_cant_send_to_not_contact" = "抱歉，您现在只能给\n双向联系人发送消息。\n{more_info}";
 "lng_cant_invite_not_contact" = "抱歉，您现在只能将\n双向联系人加入群组。\n{more_info}";
