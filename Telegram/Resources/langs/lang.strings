@@ -1003,9 +1003,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_enter_new" = "输入新密码";
 "lng_passcode_confirm_new" = "请再次输入密码";
 "lng_passcode_about" = "设置锁定码后，一个锁形图标会出现在您对话列表的顶部。点击该图标以锁定 Telegram 桌面版。\n\n注意：如果您忘记了锁定码，您将需要重新登录 Telegram 桌面版。";
-"lng_passcode_about1" = "When a local passcode is set, a lock icon appears at the top of your chat list.";
-"lng_passcode_about2" = "Click it to lock Telegram Desktop.";
-"lng_passcode_about3" = "Note: if you forget your passcode, you'll need to log out of Telegram Desktop and log in again.";
+"lng_passcode_about1" = "当设置本地锁定码时，一个锁形图标会出现在您对话列表的顶部。";
+"lng_passcode_about2" = "点击它以锁定 Telegram 桌面版。";
+"lng_passcode_about3" = "注意：如果您忘记了锁定码，您将需要重新登录 Telegram 桌面版。";
 "lng_passcode_differ" = "密码不一致";
 "lng_passcode_wrong" = "密码错误";
 "lng_passcode_is_same" = "新旧密码相同";
@@ -1112,14 +1112,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_export_data" = "导出 Telegram 数据";
 "lng_settings_destroy_if" = "保留";
 
-"lng_settings_terminate_title" = "Terminate old sessions";
-"lng_settings_terminate_if" = "If inactive for...";
+"lng_settings_terminate_title" = "退出旧设备";
+"lng_settings_terminate_if" = "如果设备不活跃...";
 "lng_settings_reset_sure" = "您确定要将所有其他设备退出登录吗？";
 "lng_settings_reset_one_sure" = "您确定要注销此设备？";
 "lng_settings_reset_button" = "确定";
-"lng_settings_rename_device" = "Rename";
-"lng_settings_device_name" = "Device name";
-"lng_settings_rename_device_title" = "Rename current device";
+"lng_settings_rename_device" = "重命名";
+"lng_settings_device_name" = "设备名称";
+"lng_settings_rename_device_title" = "重命名当前设备";
 "lng_settings_manage_local_storage" = "管理本地缓存";
 "lng_settings_ask_question" = "我有疑问";
 "lng_settings_ask_sure" = "请注意：Telegram 的支持服务由全球志愿者提供，反馈时请使用英文。我们会尽快回复您，但是仍可能需要等待一段时间。\n\n请前往“常见问题” 看看：那里有各种常见问题和故障排除指南。";
@@ -2315,10 +2315,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach_failed" = "失败";
 "lng_attach_file" = "文件";
 "lng_attach_photo" = "图片";
-"lng_attach_camera" = "Camera";
-"lng_attach_document" = "Document";
-"lng_attach_photo_or_video" = "Photo or video";
-"lng_attach_profile_emoji" = "Use an Emoji";
+"lng_attach_camera" = "摄像头";
+"lng_attach_document" = "文档";
+"lng_attach_photo_or_video" = "图片或视频";
+"lng_attach_profile_emoji" = "使用表情符号";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";
@@ -4356,7 +4356,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_status_failed" = "连接失败";
 "lng_call_status_ringing" = "正在响铃...";
 "lng_call_status_busy" = "线路正忙";
-"lng_call_status_sure" = "Click on the Camera icon if you want to start a video call.";
+"lng_call_status_sure" = "如果你想要开始视频通话，请点击摄像头图标。";
 "lng_call_fingerprint_tooltip" = "如果 {user} 屏幕上的 Emoji 和此处的相同，此通话就是 100% 安全的。";
 
 "lng_call_error_not_available" = "抱歉，由于 {user} 的隐私设置，您无法与其进行通话。";
