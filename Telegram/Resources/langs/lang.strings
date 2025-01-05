@@ -258,7 +258,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_file_size_limit_title" = "文件太大";
 "lng_file_size_limit#one" = "{count} GB";
 "lng_file_size_limit#other" = "{count} GB";
-"lng_file_size_limit1" = "文件太大，无法发送。";
+"lng_file_size_limit1" = "无法发送文件，因为文件的大小大于 {size}.";
 "lng_file_size_limit2" = "您可以通过订阅 **Telegram Premium** 将此限制翻倍到 {size} 每份文件。";
 
 "lng_filter_links_limit_title" = "已达到限制";
