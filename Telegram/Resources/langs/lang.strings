@@ -8,20 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_name" = "简体中文";
 "lng_switch_to_this" = "使用简体中文继续";
 
-"lng_menu_contacts" = "Contacts";
-"lng_menu_calls" = "Calls";
-"lng_menu_settings" = "Settings";
-"lng_menu_about" = "About";
-"lng_menu_update" = "Update";
-"lng_menu_night_mode" = "Night Mode";
-"lng_menu_add_account" = "Add Account";
-"lng_menu_activate" = "Use this account";
-"lng_menu_set_status" = "Set Emoji Status";
-"lng_menu_change_status" = "Change Emoji Status";
-"lng_menu_my_profile" = "My Profile";
-"lng_menu_my_stories" = "My Stories";
-"lng_menu_my_groups" = "My Groups";
-"lng_menu_my_channels" = "My Channels";
+"lng_menu_contacts" = "联系人";
+"lng_menu_calls" = "通话";
+"lng_menu_settings" = "设置";
+"lng_menu_about" = "关于";
+"lng_menu_update" = "更新";
+"lng_menu_night_mode" = "夜模式";
+"lng_menu_add_account" = "添加帐户";
+"lng_menu_activate" = "使用此帐户";
+"lng_menu_set_status" = "设置 Emoji 状态";
+"lng_menu_change_status" = "更改 Emoji 状态";
+"lng_menu_my_profile" = "我的个人资料";
+"lng_menu_my_stories" = "我的故事";
+"lng_menu_my_groups" = "我的群组";
+"lng_menu_my_channels" = "我的频道";
 
 "lng_disable_notifications_from_tray" = "关闭通知";
 "lng_enable_notifications_from_tray" = "启用消息通知";
@@ -666,15 +666,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_call_output_device" = "输出设备";
 "lng_settings_call_section_other" = "其他设置";
 "lng_settings_call_open_system_prefs" = "打开系统声音设置";
-"lng_settings_call_accept_calls" = "Accept calls on this device";
+"lng_settings_call_accept_calls" = "接受此设备上的通话";
 "lng_settings_call_device_default" = "默认";
 
-"lng_settings_section_devices" = "Speakers and Camera";
-"lng_settings_devices_calls" = "Calls and video chats";
-"lng_settings_devices_calls_same" = "Use the same devices for calls";
-"lng_settings_devices_inactive" = "Unavailable";
+"lng_settings_section_devices" = "扬声器和摄像头";
+"lng_settings_devices_calls" = "通话和视频通话";
+"lng_settings_devices_calls_same" = "使用相同的设备进行通话";
+"lng_settings_devices_inactive" = "不可用";
 
-"lng_settings_language" = "Language";
+"lng_settings_language" = "语言";
 "lng_settings_default_scale" = "默认界面缩放比例";
 "lng_settings_connection_type" = "连接类型";
 "lng_settings_downloading_update" = "下载更新中 {progress} ...";
@@ -720,14 +720,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_birthday_contacts_link" = "Change >";
 "lng_settings_birthday_saved" = "Your date of birth was updated.";
 "lng_settings_birthday_reset" = "Remove";
-"lng_settings_channel_label" = "Personal channel";
-"lng_settings_channel_add" = "Add";
-"lng_settings_channel_remove" = "Remove";
-"lng_settings_channel_no_yet" = "You don't have any public channels yet.";
-"lng_settings_channel_start" = "Start a Channel";
-"lng_settings_channel_saved" = "Your personal channel was updated.";
-"lng_settings_channel_removed" = "Personal channel removed.";
-"lng_settings_add_account_about" = "You can add up to four accounts with different phone numbers.";
+"lng_settings_channel_label" = "个人频道";
+"lng_settings_channel_add" = "添加";
+"lng_settings_channel_remove" = "移除";
+"lng_settings_channel_no_yet" = "您还没有任何公共频道。";
+"lng_settings_channel_start" = "开始一个频道";
+"lng_settings_channel_saved" = "您的个人频道已更新。";
+"lng_settings_channel_removed" = "个人频道已移除。";
+"lng_settings_add_account_about" = "您可以添加多达四个不同手机号码的帐户。";
 "lng_settings_peer_to_peer_about" = "禁用端对端连接后，所有通话流量都将通过 Telegram 服务器中转以避免泄露您的 IP 地址，但这可能会轻微降低音质。";
 "lng_settings_advanced" = "高级";
 "lng_settings_stickers_emoji" = "贴纸和 Emoji";
@@ -740,20 +740,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_theme_accent_title" = "选择强调色";
 "lng_settings_data_storage" = "数据和存储";
 "lng_settings_information" = "编辑资料";
-"lng_settings_my_account" = "My Account";
-"lng_settings_security" = "Security";
+"lng_settings_my_account" = "我的帐号";
+"lng_settings_security" = "安全";
 "lng_settings_passcode_title" = "设置锁定码";
 "lng_settings_sessions_title" = "已登录的设备";
 "lng_settings_sessions_about" = "控制您在其它设备上的会话。";
-"lng_settings_archive_title" = "Archive Settings";
+"lng_settings_archive_title" = "归档设置";
 "lng_settings_new_unknown" = "未知用户的新对话";
 "lng_settings_auto_archive" = "归档和关闭通知";
 "lng_settings_auto_archive_about" = "自动将来自非联系人的新私聊、群组和频道进行归档和关闭通知。";
-"lng_settings_unmuted_chats" = "Unmuted chats";
-"lng_settings_always_in_archive" = "Always keep archived";
-"lng_settings_unmuted_chats_about" = "Keep archived chats in the Archive even if they are unmuted and get a new message.";
-"lng_settings_chats_from_folders" = "Chats from folders";
-"lng_settings_chats_from_folders_about" = "Keep archived chats from folders in the Archive even if they are unmuted and get a new message.";
+"lng_settings_unmuted_chats" = "未静音的对话";
+"lng_settings_always_in_archive" = "始终保持归档";
+"lng_settings_unmuted_chats_about" = "即使对话未静音并收到新消息，也将其保持在归档中。";
+"lng_settings_chats_from_folders" = "来自文件夹的对话";
+"lng_settings_chats_from_folders_about" = "即使对话未静音并收到新消息，也将其保持在归档中。";
 "lng_settings_destroy_title" = "帐号保留期限";
 "lng_settings_version_info" = "版本与更新";
 "lng_settings_system_integration" = "系统设置";
@@ -792,26 +792,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_disconnect" = "Disconnect";
 "lng_settings_connected_title" = "Connected websites";
 
-"lng_settings_power_menu" = "Battery and Animations";
-"lng_settings_power_title" = "Power Usage";
-"lng_settings_power_subtitle" = "Power saving options";
-"lng_settings_power_stickers" = "Animated Stickers";
-"lng_settings_power_stickers_panel" = "Autoplay in panel";
-"lng_settings_power_stickers_chat" = "Autoplay in chat";
-"lng_settings_power_emoji" = "Animated Emoji";
-"lng_settings_power_emoji_panel" = "Autoplay in panel";
-"lng_settings_power_emoji_reactions" = "Autoplay in reactions menu";
-"lng_settings_power_emoji_chat" = "Autoplay in messages";
-"lng_settings_power_emoji_status" = "Autoplay in premium status";
-"lng_settings_power_chat" = "Animations in Chats";
-"lng_settings_power_chat_background" = "Wallpaper rotation";
-"lng_settings_power_chat_spoiler" = "Animated spoiler effect";
-"lng_settings_power_chat_effects" = "Effects in messages";
-"lng_settings_power_calls" = "Animations in Calls";
-"lng_settings_power_ui" = "Interface animations";
-"lng_settings_power_auto" = "Save Power on Low Battery";
-"lng_settings_power_auto_about" = "Automatically disable all animations when your laptop is in a battery saving mode.";
-"lng_settings_power_turn_off" = "Please turn off Save Power on Low Battery to change these settings.";
+"lng_settings_power_menu" = "电池和动画";
+"lng_settings_power_title" = "电源使用";
+"lng_settings_power_subtitle" = "电源节省选项";
+"lng_settings_power_stickers" = "动态贴纸";
+"lng_settings_power_stickers_panel" = "在面板中自动播放";
+"lng_settings_power_stickers_chat" = "在聊天中自动播放";
+"lng_settings_power_emoji" = "动态表情";
+"lng_settings_power_emoji_panel" = "在面板中自动播放";
+"lng_settings_power_emoji_reactions" = "在反应菜单中自动播放";
+"lng_settings_power_emoji_chat" = "在消息中自动播放";
+"lng_settings_power_emoji_status" = "在高级状态中自动播放";
+"lng_settings_power_chat" = "聊天中的动画";
+"lng_settings_power_chat_background" = "壁纸旋转";
+"lng_settings_power_chat_spoiler" = "动画剧透效果";
+"lng_settings_power_chat_effects" = "消息中的效果";
+"lng_settings_power_calls" = "通话中的动画";
+"lng_settings_power_ui" = "界面动画";
+"lng_settings_power_auto" = "在低电量时节省电量";
+"lng_settings_power_auto_about" = "当您的笔记本电脑处于电池节省模式时自动禁用所有动画。";
+"lng_settings_power_turn_off" = "请关闭「在低电量时节省电量」以更改这些设置。";
 
 "lng_settings_cloud_password_on" = "On";
 "lng_settings_cloud_password_off" = "Off";
@@ -1127,14 +1127,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_ask_ok" = "向志愿者提问";
 "lng_settings_faq" = "常见问题";
 "lng_settings_faq_link" = "https://telegram.org/faq#general-questions";
-"lng_settings_features" = "Telegram Features";
-"lng_settings_credits" = "My Stars";
+"lng_settings_features" = "Telegram 功能";
+"lng_settings_credits" = "我的星星";
 "lng_settings_logout" = "退出当前帐号";
 "lng_sure_logout" = "您确定要退出当前帐号吗？";
 
 "lng_settings_need_restart" = "您需要重启软件才能执行某些变更。立即重启？";
 "lng_settings_restart_now" = "立即重启";
-"lng_settings_restart_later" = "Later";
+"lng_settings_restart_later" = "稍后";
 
 "lng_sessions_header" = "当前设备";
 "lng_sessions_other_header" = "已登录的设备";
@@ -1143,15 +1143,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sessions_terminate_all_about" = "退出所有已登录的设备，只保留当前使用的。";
 "lng_sessions_incomplete" = "未完成的登录尝试";
 "lng_sessions_incomplete_about" = "这些设备无法获取你的消息。他们输入了正确的验证码，但是没有提供正确的两步验证密码。";
-"lng_sessions_info" = "Info";
-"lng_sessions_terminate" = "Terminate Session";
-"lng_sessions_application" = "Application";
-"lng_sessions_system" = "System version";
-"lng_sessions_browser" = "Browser";
-"lng_sessions_ip" = "IP address";
-"lng_sessions_location" = "Location";
-"lng_sessions_location_about" = "This location estimate is based on the IP address and may not always be accurate.";
-"lng_sessions_about_apps" = "The official Telegram app is available for Android, iPhone, iPad, Windows, macOS and Linux.";
+"lng_sessions_info" = "信息";
+"lng_sessions_terminate" = "终止会话";
+"lng_sessions_application" = "应用程序";
+"lng_sessions_system" = "系统版本";
+"lng_sessions_browser" = "浏览器";
+"lng_sessions_ip" = "IP 地址";
+"lng_sessions_location" = "位置";
+"lng_sessions_location_about" = "此位置估计基于 IP 地址，可能并不总是准确。";
+"lng_sessions_about_apps" = "官方 Telegram 应用适用于 Android、iPhone、iPad、Windows、macOS 和 Linux。";
 
 "lng_blocked_list_title" = "已屏蔽的用户";
 "lng_blocked_list_unknown_phone" = "未知号码";
@@ -1166,7 +1166,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_blocked_list_confirm_clear" = "删除这个对话";
 "lng_blocked_list_confirm_ok" = "屏蔽";
 "lng_blocked_list_empty_title" = "No blocked users";
-"lng_blocked_list_empty_description" = "You haven't blocked anyone yet.";
+"lng_blocked_list_empty_description" = "您还没有屏蔽任何人。";
 "lng_blocked_list_subtitle#one" = "{count} blocked user";
 "lng_blocked_list_subtitle#other" = "{count} blocked users";
 
@@ -5271,11 +5271,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_translate_box_error" = "Translate failed.";
 
-"lng_translate_settings_subtitle" = "Translate Messages";
-"lng_translate_settings_show" = "Show Translate Button";
-"lng_translate_settings_chat" = "Translate Entire Chats";
-"lng_translate_settings_choose" = "Do Not Translate";
-"lng_translate_settings_about" = "The 'Translate' button will appear in the context menu of messages containing text.";
+"lng_translate_settings_subtitle" = "翻译消息";
+"lng_translate_settings_show" = "显示翻译按钮";
+"lng_translate_settings_chat" = "翻译整个对话";
+"lng_translate_settings_choose" = "不翻译";
+"lng_translate_settings_about" = "“翻译”按钮将出现在包含文本的消息的上下文菜单中。";
 "lng_translate_settings_one" = "Please choose at least one language so that it can be used as the \"Translate to\" language.";
 
 "lng_launch_exe_warning" = "这个文件的扩展名是 {extension}。\n它可能会损害您的电脑。\n您确定要执行它吗？";
