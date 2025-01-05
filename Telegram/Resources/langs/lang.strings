@@ -2373,13 +2373,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_emoji" = "Select Emoji Pack";
 "lng_group_emoji_description" = "Choose an emoji pack that will be available to all members within the group.";
 
-"lng_premium" = "Premium";
-"lng_premium_free" = "Free";
-"lng_premium_more_about" = "About Telegram Premium";
-"lng_premium_unlock_reactions" = "Unlock Premium Reactions";
-"lng_premium_unlock_stickers" = "Unlock Premium Stickers";
-"lng_premium_unlock_emoji" = "Unlock Animated Emoji";
-"lng_premium_unlock_status" = "Unlock Emoji Status";
+"lng_premium" = "高级版";
+"lng_premium_free" = "免费";
+"lng_premium_more_about" = "关于 Telegram 高级版";
+"lng_premium_unlock_reactions" = "解锁高级反应";
+"lng_premium_unlock_stickers" = "解锁高级贴纸";
+"lng_premium_unlock_emoji" = "解锁动画表情";
+"lng_premium_unlock_status" = "解锁表情状态";
 
 "lng_premium_subscribe_months_12" = "年度";
 "lng_premium_subscribe_months_6" = "半年度";
@@ -2965,24 +2965,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_gifting" = "Boost your channel by gifting your subscribers Telegram Premium. {link}";
 "lng_boost_channel_gifting_link" = "Get boosts >";
 
-"lng_feature_stories#one" = "**{count}** Story Per Day";
-"lng_feature_stories#other" = "**{count}** Stories Per Day";
-"lng_feature_reactions#one" = "**{count}** Custom Reaction";
-"lng_feature_reactions#other" = "**{count}** Custom Reactions";
-"lng_feature_name_color_channel#one" = "**{count}** Channel Name Color";
-"lng_feature_name_color_channel#other" = "**{count}** Channel Name Colors";
-"lng_feature_link_style_channel#one" = "**{count}** Style for Links and Quotes";
-"lng_feature_link_style_channel#other" = "**{count}** Styles for Links and Quotes";
-"lng_feature_link_emoji" = "Custom Logo for Links and Quotes";
-"lng_feature_emoji_status" = "**1000+** Emoji Statuses";
-"lng_feature_backgrounds_channel#one" = "**{count}** Channel Background";
-"lng_feature_backgrounds_channel#other" = "**{count}** Channel Backgrounds";
-"lng_feature_custom_background_channel" = "Custom Channel Background";
-"lng_feature_backgrounds_group#one" = "**{count}** Group Background";
-"lng_feature_backgrounds_group#other" = "**{count}** Group Backgrounds";
-"lng_feature_custom_background_group" = "Custom Group Background";
-"lng_feature_custom_emoji_pack" = "Custom Emoji Pack";
-"lng_feature_transcribe" = "Voice-to-Text Conversion";
+"lng_feature_stories#one" = "**{count}** 每天的故事";
+"lng_feature_stories#other" = "**{count}** 每天的故事";
+"lng_feature_reactions#one" = "**{count}** 自定义反应";
+"lng_feature_reactions#other" = "**{count}** 自定义反应";
+"lng_feature_name_color_channel#one" = "**{count}** 频道名称颜色";
+"lng_feature_name_color_channel#other" = "**{count}** 频道名称颜色";
+"lng_feature_link_style_channel#one" = "**{count}** 链接和引用的样式";
+"lng_feature_link_style_channel#other" = "**{count}** 链接和引用的样式";
+"lng_feature_link_emoji" = "链接和引用的自定义标志";
+"lng_feature_emoji_status" = "**1000+** 表情状态";
+"lng_feature_backgrounds_channel#one" = "**{count}** 频道背景";
+"lng_feature_backgrounds_channel#other" = "**{count}** 频道背景";
+"lng_feature_custom_background_channel" = "自定义频道背景";
+"lng_feature_backgrounds_group#one" = "**{count}** 群组背景";
+"lng_feature_backgrounds_group#other" = "**{count}** 群组背景";
+"lng_feature_custom_background_group" = "自定义群组背景";
+"lng_feature_custom_emoji_pack" = "自定义表情包";
+"lng_feature_transcribe" = "语音转文字转换";
 
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
