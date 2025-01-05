@@ -3344,14 +3344,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_button" = "Transfer";
 "lng_gift_transfer_button_for" = "Transfer for {price}";
 
-"lng_accounts_limit_title" = "Limit Reached";
-"lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected account.";
-"lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";
-"lng_accounts_limit2" = "You can free one place by subscribing to **Telegram Premium** with one of these connected accounts:";
+"lng_accounts_limit_title" = "已达到限制";
+"lng_accounts_limit1#one" = "您已达到 **{count}** 个连接账户的限制。";
+"lng_accounts_limit1#other" = "您已达到 **{count}** 个连接账户的限制。";
+"lng_accounts_limit2" = "您可以通过订阅 **Telegram Premium**，并使用这些连接账户中的一个来释放一个位置：";
 
-"lng_emoji_status_for_title" = "Set Status for...";
-"lng_emoji_status_for_submit" = "Set Status";
-"lng_emoji_status_menu_duration_any" = "Set Status for {duration}";
+"lng_emoji_status_for_title" = "为...设置状态";
+"lng_emoji_status_for_submit" = "设置状态";
+"lng_emoji_status_menu_duration_any" = "为 {duration} 设置状态";
 
 "lng_group_about_header" = "您创建了一个群组";
 "lng_group_about_text" = "群组可以拥有：";
@@ -5706,23 +5706,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_save_promo" = "订阅 {link} 以保存其他人的故事，除非它们被保护。";
 "lng_stories_reaction_as_message" = "将反应发送为私信";
 
-"lng_stealth_mode_menu_item" = "Hide My View";
-"lng_stealth_mode_title" = "Stealth Mode";
-"lng_stealth_mode_unlock_about" = "Subscribe to Telegram Premium to watch stories without appearing in the list of viewers.";
-"lng_stealth_mode_about" = "Turn Stealth Mode on to watch stories without appearing in the list of viewers.";
-"lng_stealth_mode_past_title" = "Hide Recent Views";
-"lng_stealth_mode_past_about" = "Hide my views from the past 5 minutes.";
-"lng_stealth_mode_next_title" = "Hide Upcoming Views";
-"lng_stealth_mode_next_about" = "Hide my views for the next 25 minutes.";
-"lng_stealth_mode_unlock" = "Unlock Stealth Mode";
-"lng_stealth_mode_enable" = "Enable Stealth Mode";
-"lng_stealth_mode_cooldown_in" = "Available in {left}";
-"lng_stealth_mode_cooldown_tip" = "Please wait until **Stealth Mode** is ready to use again.";
-"lng_stealth_mode_enabled_tip_title" = "Stealth Mode On";
-"lng_stealth_mode_enabled_tip" = "The creators of stories you viewed in the last **5 minutes** or will view in the next **25 minutes** won't see you in the viewers' lists.";
-"lng_stealth_mode_countdown" = "Stealth Mode active – {left}";
-"lng_stealth_mode_already_title" = "You are in Stealth Mode";
-"lng_stealth_mode_already_about" = "The creators of stories you view in the next **{left}** won't see you in the viewers' lists.";
+"lng_stealth_mode_menu_item" = "隐藏我的查看";
+"lng_stealth_mode_title" = "隐身模式";
+"lng_stealth_mode_unlock_about" = "订阅 Telegram Premium，以便在不出现在观众列表中的情况下观看故事。";
+"lng_stealth_mode_about" = "启用隐身模式，以便在不出现在观众列表中的情况下观看故事。";
+"lng_stealth_mode_past_title" = "隐藏最近的查看";
+"lng_stealth_mode_past_about" = "隐藏过去 5 分钟内的我的查看。";
+"lng_stealth_mode_next_title" = "隐藏即将到来的查看";
+"lng_stealth_mode_next_about" = "隐藏未来 25 分钟内的我的查看。";
+"lng_stealth_mode_unlock" = "解锁隐身模式";
+"lng_stealth_mode_enable" = "启用隐身模式";
+"lng_stealth_mode_cooldown_in" = "在 {left} 内可用";
+"lng_stealth_mode_cooldown_tip" = "请等待，直到 **隐身模式** 再次准备好使用。";
+"lng_stealth_mode_enabled_tip_title" = "隐身模式已启用";
+"lng_stealth_mode_enabled_tip" = "你在过去 **5 分钟** 内或将在未来 **25 分钟** 内查看的故事的创作者不会在观众列表中看到你。";
+"lng_stealth_mode_countdown" = "隐身模式已激活 – {left}";
+"lng_stealth_mode_already_title" = "你已在隐身模式下";
+"lng_stealth_mode_already_about" = "你在未来 **{left}** 内查看的故事的创作者不会在观众列表中看到你。";
 
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 
