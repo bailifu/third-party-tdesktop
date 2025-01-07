@@ -4145,7 +4145,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_global_results" = "全局搜索结果";
 "lng_search_messages_from" = "显示消息 来自";
 "lng_search_messages_n_of_amount" = "{n} of {amount}";
-"lng_search_messages_none" = "No results";
+"lng_search_messages_none" = "没有结果";
+"lng_search_filter_all" = "未找到消息";
+"lng_search_filter_private" = "私密聊天";
+"lng_search_filter_group" = "群组聊天";
+"lng_search_filter_channel" = "频道";
 
 "lng_media_save_progress" = "{ready} / {total} {mb}";
 "lng_mediaview_save_as" = "另存为...";
@@ -5997,6 +6001,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_tab_no_results_text" = "对于 \"{query}\" 没有结果。";
 "lng_search_tab_no_results_retry" = "尝试另一个标签。";
 "lng_search_tab_by_hashtag" = "输入一个标签以找到包含它的消息。";
+"lng_search_tab_try_in_all" = "在所有消息中搜索";
 
 "lng_contact_details_button" = "查看联系人";
 "lng_contact_details_title" = "联系人详细信息";
