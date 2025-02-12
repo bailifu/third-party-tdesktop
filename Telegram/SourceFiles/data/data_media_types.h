@@ -46,6 +46,7 @@ enum class CallFinishReason : char {
 	Busy,
 	Disconnected,
 	Hangup,
+	AllowGroupCall,
 };
 
 struct SharedContact final {
@@ -141,6 +142,8 @@ struct GiftCode {
 	std::shared_ptr<UniqueGift> unique;
 	TextWithEntities message;
 	ChannelData *channel = nullptr;
+	PeerData *channelFrom = nullptr;
+	uint64 channelSavedId = 0;
 	MsgId giveawayMsgId = 0;
 	MsgId upgradeMsgId = 0;
 	int starsConverted = 0;
