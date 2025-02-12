@@ -447,16 +447,17 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
 	result.finishReason = [&] {
 		if (const auto reason = call.vreason()) {
-			switch (reason->type()) {
-			case mtpc_phoneCallDiscardReasonBusy:
+			return reason->match([](const MTPDphoneCallDiscardReasonBusy &) {
 				return CallFinishReason::Busy;
-			case mtpc_phoneCallDiscardReasonDisconnect:
+			}, [](const MTPDphoneCallDiscardReasonDisconnect &) {
 				return CallFinishReason::Disconnected;
-			case mtpc_phoneCallDiscardReasonHangup:
+			}, [](const MTPDphoneCallDiscardReasonHangup &) {
 				return CallFinishReason::Hangup;
-			case mtpc_phoneCallDiscardReasonMissed:
+			}, [](const MTPDphoneCallDiscardReasonMissed &) {
 				return CallFinishReason::Missed;
-			}
+			}, [](const MTPDphoneCallDiscardReasonAllowGroupCall &) {
+				return CallFinishReason::AllowGroupCall;
+			});
 			Unexpected("Call reason type.");
 		}
 		return CallFinishReason::Hangup;
@@ -2375,13 +2376,13 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (const auto raw = _data.unique.get()) {
+	if (const auto &unique = _data.unique) {
 		return std::make_unique<HistoryView::MediaGeneric>(
 			message,
-			HistoryView::GenerateUniqueGiftMedia(message, replacing, raw),
+			HistoryView::GenerateUniqueGiftMedia(message, replacing, unique),
 			HistoryView::MediaGenericDescriptor{
 				.maxWidth = st::msgServiceGiftBoxSize.width(),
-				.paintBg = HistoryView::UniqueGiftBg(message, raw),
+				.paintBg = HistoryView::UniqueGiftBg(message, unique),
 				.service = true,
 			});
 	}

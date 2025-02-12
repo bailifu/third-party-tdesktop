@@ -26,8 +26,11 @@ class SessionController;
 namespace Settings {
 
 bool HasUpdate();
+void SetupUpdate(not_null<Ui::VerticalLayout *> container);
 void SetupWindowTitleContent(Window::SessionController *controller,
                              not_null<Ui::VerticalLayout *> container);
+void SetupWindowCloseBehaviorContent(Window::SessionController *controller,
+                                     not_null<Ui::VerticalLayout *> container);
 void SetupSystemIntegrationContent(Window::SessionController *controller,
                                    not_null<Ui::VerticalLayout *> container);
 void SetupAnimations(not_null<Window::Controller *> window,
