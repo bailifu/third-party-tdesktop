@@ -642,6 +642,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_chat_quick_action_react" = "双击发送反应";
 "lng_settings_chat_corner_reaction" = "消息中的反应按钮";
 
+"lng_settings_shortcuts" = "快捷键";
+
+"lng_shortcuts_reset" = "恢复默认";
+"lng_shortcuts_recording" = "录制中...";
+"lng_shortcuts_add_another" = "添加另一个";
+
+"lng_shortcuts_close" = "关闭窗口";
+"lng_shortcuts_lock" = "锁定应用程序";
+"lng_shortcuts_minimize" = "最小化窗口";
+"lng_shortcuts_quit" = "退出应用程序";
+"lng_shortcuts_media_play" = "播放媒体";
+"lng_shortcuts_media_pause" = "暂停媒体";
+"lng_shortcuts_media_play_pause" = "切换媒体播放";
+"lng_shortcuts_media_stop" = "停止媒体播放";
+"lng_shortcuts_media_previous" = "上一首";
+"lng_shortcuts_media_next" = "下一首";
+"lng_shortcuts_search" = "搜索消息";
+"lng_shortcuts_chat_previous" = "上一个聊天";
+"lng_shortcuts_chat_next" = "下一个聊天";
+"lng_shortcuts_chat_first" = "第一个聊天";
+"lng_shortcuts_chat_last" = "最后一个聊天";
+"lng_shortcuts_chat_self" = "已保存的消息";
+"lng_shortcuts_chat_pinned_n" = "已置顶聊天 #{index}";
+"lng_shortcuts_show_account_n" = "账户 #{index}";
+"lng_shortcuts_show_all_chats" = "所有聊天文件夹";
+"lng_shortcuts_show_folder_n" = "文件夹 #{index}";
+"lng_shortcuts_show_folder_last" = "最后一个文件夹";
+"lng_shortcuts_folder_next" = "下一个文件夹";
+"lng_shortcuts_folder_previous" = "上一个文件夹";
+"lng_shortcuts_scheduled" = "已安排的消息";
+"lng_shortcuts_archive" = "已归档的聊天";
+"lng_shortcuts_contacts" = "联系人列表";
+"lng_shortcuts_just_send" = "直接发送";
+"lng_shortcuts_silent_send" = "静音发送";
+"lng_shortcuts_schedule" = "安排";
+"lng_shortcuts_read_chat" = "标记为已读";
+"lng_shortcuts_archive_chat" = "归档聊天";
+"lng_shortcuts_media_fullscreen" = "切换视频全屏";
+"lng_shortcuts_show_chat_menu" = "显示聊天菜单";
+
 "lng_settings_chat_reactions_title" = "快速反应";
 "lng_settings_chat_reactions_subtitle" = "选择您最喜欢的反应";
 "lng_settings_chat_message_reply_from" = "Bob Harris";
@@ -2404,9 +2444,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers" = "群组贴纸包";
 "lng_group_stickers_description" = "您可以选择一个贴纸包供全体成员使用。";
 "lng_group_stickers_add" = "选择贴纸包";
-"lng_group_emoji" = "Select Emoji Pack";
-"lng_group_emoji_description" = "Choose an emoji pack that will be available to all members within the group.";
-"lng_collectible_emoji" = "Collectibles";
+"lng_group_emoji" = "选择表情包";
+"lng_group_emoji_description" = "选择一个表情包，供全体成员使用。";
+"lng_collectible_emoji" = "收藏品";
 
 "lng_premium" = "高级版";
 "lng_premium_free" = "免费";
@@ -2552,9 +2592,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_double_limits_about_accounts#one" = "Connect {count} account with different mobile numbers";
 "lng_premium_double_limits_about_accounts#other" = "Connect {count} accounts with different mobile numbers";
 
-"lng_premium_double_limits_subtitle_similar_channels" = "Similar Channel";
-"lng_premium_double_limits_about_similar_channels#one" = "View up to {count} similar channel";
-"lng_premium_double_limits_about_similar_channels#other" = "View up to {count} similar channels";
+"lng_premium_double_limits_subtitle_similar_channels" = "相似频道";
+"lng_premium_double_limits_about_similar_channels#one" = "查看最多 {count} 个相似频道";
+"lng_premium_double_limits_about_similar_channels#other" = "查看最多 {count} 个相似频道";
 //
 
 "lng_premium_gift_title" = "Gift Telegram Premium";
