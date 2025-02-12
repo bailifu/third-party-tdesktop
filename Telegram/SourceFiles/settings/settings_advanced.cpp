@@ -817,18 +817,7 @@ void Advanced::setupContent(not_null<Window::SessionController *> controller) {
       AddDivider(content);
     }
   };
-  const auto addUpdate = [&] {
-    if (HasUpdate()) {
-      addDivider();
-      AddSkip(content);
-      AddSubsectionTitle(content, tr::lng_settings_version_info());
-      SetupUpdate(content);
-      AddSkip(content);
-    }
-  };
-  if (!cAutoUpdate()) {
-    addUpdate();
-  }
+
   addDivider();
   SetupDataStorage(controller, content);
   SetupAutoDownload(controller, content);
