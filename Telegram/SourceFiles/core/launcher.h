@@ -33,6 +33,7 @@ class Launcher {
   bool customWorkingDir() const;
 
   uint64 installationTag() const;
+  QByteArray instanceHash() const;
 
   bool checkPortableVersionFolder();
   bool validateCustomWorkingDir();

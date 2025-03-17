@@ -158,6 +158,7 @@ struct SectionShow {
 
 	TextWithEntities highlightPart;
 	int highlightPartOffsetHint = 0;
+	std::optional<TimeId> videoTimestamp;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
@@ -505,7 +506,8 @@ public:
 		not_null<DocumentData*> document,
 		bool showInMediaView,
 		MessageContext message,
-		const Data::StoriesContext *stories = nullptr);
+		const Data::StoriesContext *stories = nullptr,
+		std::optional<TimeId> videoTimestampOverride = {});
 	bool openSharedStory(HistoryItem *item);
 	bool openFakeItemStory(
 		FullMsgId fakeItemId,
@@ -754,5 +756,10 @@ void ActivateWindow(not_null<SessionController*> controller);
 [[nodiscard]] Fn<bool()> PausedIn(
 	not_null<SessionController*> controller,
 	GifPauseReason level);
+
+bool CheckAndJumpToNearChatsFilter(
+	not_null<SessionController*> controller,
+	bool isNext,
+	bool jump);
 
 } // namespace Window

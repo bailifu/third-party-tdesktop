@@ -341,8 +341,8 @@ void Action::paint(Painter &p) {
     paintRipple(p, 0, 0);
   }
   if (!_custom && !_content.singleCustomEntityData.isEmpty()) {
-    _custom =
-        _customEmojiFactory(_content.singleCustomEntityData, [=] { update(); });
+    _custom = _customEmojiFactory(_content.singleCustomEntityData,
+                                  {.repaint = [=] { update(); }});
   }
   if (_custom) {
     const auto ratio = style::DevicePixelRatio();
@@ -685,7 +685,8 @@ void WhoReactedEntryAction::setData(Data &&data) {
   }
   _type = data.type;
   _custom = _customEmojiFactory
-                ? _customEmojiFactory(data.customEntityData, [=] { update(); })
+                ? _customEmojiFactory(data.customEntityData,
+                                      {.repaint = [=] { update(); }})
                 : nullptr;
   const auto ratio = style::DevicePixelRatio();
   const auto size = Emoji::GetSizeNormal() / ratio;
