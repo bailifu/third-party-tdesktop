@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include <private/qkeymapper_p.h>
+
 namespace Settings {
 namespace {
 
@@ -96,6 +98,7 @@ struct Labeled {
 		{ C::ArchiveChat, tr::lng_shortcuts_archive_chat() },
 		{ C::ShowScheduled, tr::lng_shortcuts_scheduled() },
 		{ C::ShowChatMenu, tr::lng_shortcuts_show_chat_menu() },
+		{ C::ShowChatPreview, tr::lng_shortcuts_show_chat_preview() },
 		separator,
 		{ C::JustSendMessage, tr::lng_shortcuts_just_send() },
 		{ C::SendSilentMessage, tr::lng_shortcuts_silent_send() },
@@ -124,8 +127,8 @@ struct Labeled {
 }
 
 [[nodiscard]] Fn<void()> SetupShortcutsContent(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> content) {
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> content) {
 	const auto &defaults = S::KeysDefaults();
 	const auto &currents = S::KeysCurrents();
 
@@ -396,7 +399,25 @@ struct Labeled {
 				}
 				return base::EventFilterResult::Cancel;
 			}
-			stopRecording(clear ? QKeySequence() : QKeySequence(k | m));
+			const auto r = [&] {
+				auto result = int(k);
+				if (m & Qt::ShiftModifier) {
+					const auto keys = QKeyMapper::possibleKeys(key);
+					for (const auto &possible : keys) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+						if (possible.keyboardModifiers() == m) {
+							return int(possible.key());
+						}
+#else // Qt >= 6.7.0
+						if (possible > int(m)) {
+							return possible - int(m);
+						}
+#endif // Qt < 6.7.0
+					}
+				}
+				return result;
+			}();
+			stopRecording(clear ? QKeySequence() : QKeySequence(r | m));
 			return base::EventFilterResult::Cancel;
 		} else if (type == QEvent::KeyPress && state->recording.current()) {
 			if (!content->window()->isActiveWindow()) {
