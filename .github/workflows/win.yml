@@ -3,50 +3,49 @@ name: Windows.
 on:
   push:
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+      - "docs/**"
+      - "**.md"
+      - "changelog.txt"
+      - "LEGAL"
+      - "LICENSE"
+      - ".github/**"
+      - "!.github/workflows/win.yml"
+      - "lib/xdg/**"
+      - "snap/**"
+      - "Telegram/build/docker/**"
+      - "Telegram/Resources/uwp/**"
+      - "Telegram/SourceFiles/platform/linux/**"
+      - "Telegram/SourceFiles/platform/mac/**"
+      - "Telegram/Telegram/**"
+      - "Telegram/configure.sh"
+      - "Telegram/Telegram.plist"
   pull_request:
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'changelog.txt'
-      - 'LEGAL'
-      - 'LICENSE'
-      - '.github/**'
-      - '!.github/workflows/win.yml'
-      - 'lib/xdg/**'
-      - 'snap/**'
-      - 'Telegram/build/docker/**'
-      - 'Telegram/Resources/uwp/**'
-      - 'Telegram/SourceFiles/platform/linux/**'
-      - 'Telegram/SourceFiles/platform/mac/**'
-      - 'Telegram/Telegram/**'
-      - 'Telegram/configure.sh'
-      - 'Telegram/Telegram.plist'
+      - "docs/**"
+      - "**.md"
+      - "changelog.txt"
+      - "LEGAL"
+      - "LICENSE"
+      - ".github/**"
+      - "!.github/workflows/win.yml"
+      - "lib/xdg/**"
+      - "snap/**"
+      - "Telegram/build/docker/**"
+      - "Telegram/Resources/uwp/**"
+      - "Telegram/SourceFiles/platform/linux/**"
+      - "Telegram/SourceFiles/platform/mac/**"
+      - "Telegram/Telegram/**"
+      - "Telegram/configure.sh"
+      - "Telegram/Telegram.plist"
 
 jobs:
-
   windows:
     name: Windows
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     strategy:
       matrix:
-        arch: [Win32, x64]
+        arch: [x64]
         generator: ["", "Ninja Multi-Config"]
 
     env:
@@ -116,7 +115,14 @@ jobs:
           GYP_MSVS_VERSION: 2022
         run: |
           cd %TBUILD%
-          %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+          %REPO_NAME%\Telegram\build\prepare\win.bat silent
+
+      - name: Save Libraries cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.TBUILD }}\Libraries
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
 
       - name: Read configuration matrix.
         shell: bash
@@ -184,15 +190,14 @@ jobs:
           -D DESKTOP_APP_NO_PDB=ON ^
           %TDESKTOP_BUILD_DEFINE%
 
-          cmake --build ..\out --config Debug --parallel
+          cmake --build ..\out --config Release --parallel
 
       - name: Move artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
-          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
+          set OUT=%TBUILD%\%REPO_NAME%\out\Release
           mkdir artifact
           move %OUT%\Telegram.exe artifact/
-          move %OUT%\Updater.exe artifact/
       - uses: actions/upload-artifact@v4
         name: Upload artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
