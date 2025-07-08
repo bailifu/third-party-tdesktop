@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_websites.h"
 #include "apiwrap.h"
 #include "boxes/peer_list_box.h"
-#include "boxes/sessions_box.h"
 #include "data/data_user.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_active_sessions.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
@@ -119,7 +119,7 @@ void InfoBox(
 				data.bot,
 				st::websiteBigUserpic)),
 		st::sessionBigCoverPadding)->entity();
-	userpic->forceForumShape(true);
+	userpic->overrideShape(Ui::PeerUserpicShape::Forum);
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	const auto nameWrap = box->addRow(
@@ -224,25 +224,11 @@ PaintRoundImageCallback Row::generatePaintUserpicCallback(bool forceRound) {
 	const auto peer = _data.bot;
 	auto userpic = _userpic = peer->createUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		const auto ratio = style::DevicePixelRatio();
-		if (const auto cloud = peer->userpicCloudImage(userpic)) {
-			Ui::ValidateUserpicCache(
-				userpic,
-				cloud,
-				nullptr,
-				size * ratio,
-				true);
-			p.drawImage(QRect(x, y, size, size), userpic.cached);
-		} else {
-			if (_emptyUserpic.isNull()) {
-				_emptyUserpic = PeerData::GenerateUserpicImage(
-					peer,
-					_userpic,
-					size * ratio,
-					size * ratio * Ui::ForumUserpicRadiusMultiplier());
-			}
-			p.drawImage(QRect(x, y, size, size), _emptyUserpic);
-		}
+		peer->paintUserpic(p, _userpic, {
+			.position = QPoint(x, y),
+			.size = size,
+			.shape = Ui::PeerUserpicShape::Forum,
+		});
 	};
 }
 

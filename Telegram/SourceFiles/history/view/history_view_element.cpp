@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
+#include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_similar_channels.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
+#include "history/view/media/history_view_suggest_decision.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
@@ -30,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -39,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "data/components/sponsored_messages.h"
+#include "data/data_channel.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -94,6 +100,89 @@ Element *MousedElement/* = nullptr*/;
 	return session->tryResolveWindow();
 }
 
+[[nodiscard]] TextSelection FindSearchQueryHighlight(
+		const QString &text,
+		const QString &query) {
+	const auto lower = query.toLower();
+	const auto inside = text.toLower();
+	const auto find = [&](QStringView part) {
+		auto skip = 0;
+		if (const auto from = inside.indexOf(part, skip); from >= 0) {
+			if (!from || !inside[from - 1].isLetterOrNumber()) {
+				return int(from);
+			}
+			skip = from + 1;
+		}
+		return -1;
+	};
+	if (const auto from = find(lower); from >= 0) {
+		const auto till = from + query.size();
+		if (till >= inside.size() || !inside[till].isLetterOrNumber()) {
+			return { uint16(from), uint16(till) };
+		}
+	}
+	const auto tillEndOfWord = [&](int from) {
+		for (auto till = from + 1; till != inside.size(); ++till) {
+			if (!inside[till].isLetterOrNumber()) {
+				return TextSelection{ uint16(from), uint16(till) };
+			}
+		}
+		return TextSelection{ uint16(from), uint16(inside.size()) };
+	};
+	const auto words = QStringView(lower).split(
+		QRegularExpression(
+			u"[\\W]"_q,
+			QRegularExpression::UseUnicodePropertiesOption),
+		Qt::SkipEmptyParts);
+	for (const auto &word : words) {
+		const auto length = int(word.size());
+		const auto cut = length / 2;
+		const auto part = word.mid(0, length - cut);
+		const auto offset = find(part);
+		if (offset < 0) {
+			continue;
+		}
+		for (auto i = 0; i != cut; ++i) {
+			const auto part = word.mid(0, length - i);
+			if (const auto from = find(part); from >= 0) {
+				return tillEndOfWord(from);
+			}
+		}
+		return tillEndOfWord(offset);
+	}
+	return {};
+}
+
+[[nodiscard]] TextSelection ApplyModificationsFrom(
+		TextSelection result,
+		const Ui::Text::String &text) {
+	if (result.empty()) {
+		return result;
+	}
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= result.to) {
+			break;
+		}
+		if (modification.added) {
+			++result.to;
+		}
+		const auto shiftTo = std::min(
+			int(modification.skipped),
+			result.to - modification.position);
+		result.to -= shiftTo;
+		if (modification.position <= result.from) {
+			if (modification.added) {
+				++result.from;
+			}
+			const auto shiftFrom = std::min(
+				int(modification.skipped),
+				result.from - modification.position);
+			result.from -= shiftFrom;
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
@@ -111,7 +200,8 @@ bool DefaultElementDelegate::elementUnderCursor(
 	return false;
 }
 
-SelectionModeResult DefaultElementDelegate::elementInSelectionMode() {
+SelectionModeResult DefaultElementDelegate::elementInSelectionMode(
+		const Element *view) {
 	return {};
 }
 
@@ -174,8 +264,8 @@ void DefaultElementDelegate::elementHandleViaClick(
 	not_null<UserData*> bot) {
 }
 
-bool DefaultElementDelegate::elementIsChatWide() {
-	return false;
+ElementChatMode DefaultElementDelegate::elementChatMode() {
+	return ElementChatMode::Default;
 }
 
 void DefaultElementDelegate::elementReplyTo(const FullReplyTo &to) {
@@ -298,6 +388,9 @@ QString DateTooltipText(not_null<Element*> view) {
 	if (item->isScheduled() && item->isSilent()) {
 		dateText += '\n' + QChar(0xD83D) + QChar(0xDD15);
 	}
+	if (const auto stars = item->out() ? item->starsPaid() : 0) {
+		dateText += '\n' + tr::lng_you_paid_stars(tr::now, lt_count, stars);
+	}
 	return dateText;
 }
 
@@ -319,7 +412,7 @@ void UnreadBar::paint(
 		const PaintContext &context,
 		int y,
 		int w,
-		bool chatWide) const {
+		ElementChatMode mode) const {
 	const auto previousTranslation = p.transform().dx();
 	if (previousTranslation != 0) {
 		p.translate(-previousTranslation, 0);
@@ -343,7 +436,7 @@ void UnreadBar::paint(
 	p.setPen(st->historyUnreadBarFg());
 
 	int maxwidth = w;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		maxwidth = qMin(
 			maxwidth,
 			st::msgMaxWidth
@@ -386,42 +479,187 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
-void ServicePreMessage::init(TextWithEntities string) {
-	text = Ui::Text::String(
-		st::serviceTextStyle,
-		string,
-		kMarkupTextOptions,
-		st::msgMinWidth);
+void MonoforumSenderBar::init(
+		not_null<PeerData*> parentChat,
+		not_null<PeerData*> peer) {
+	sender = peer;
+	text.setText(st::semiboldTextStyle, peer->name());
+	const auto skip = st::monoforumBarUserpicSkip;
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	width = skip + userpic + skip * 2 + text.maxWidth() + st::msgServicePadding.right();
 }
 
-int ServicePreMessage::resizeToWidth(int newWidth, bool chatWide) {
+int MonoforumSenderBar::height() const {
+	return st::msgServiceMargin.top()
+		+ st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		+ st::msgServiceMargin.bottom();
+}
+
+void MonoforumSenderBar::paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) const {
+	Paint(p, st, sender, text, width, view, y, w, chatWide, skipPatternLine);
+}
+
+void MonoforumSenderBar::PaintFor(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<Element*> itemView,
+		Ui::PeerUserpicView &userpicView,
+		int y,
+		int w,
+		bool chatWide) {
+	const auto sublist = itemView->data()->savedSublist();
+	const auto sender = (sublist && sublist->parentChat())
+		? sublist->sublistPeer().get()
+		: nullptr;
+	if (!sender || sender->isMonoforum()) {
+		return;
+	}
+	auto text = Ui::Text::String(st::semiboldTextStyle, sender->name());
+	const auto skip = st::monoforumBarUserpicSkip;
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	const auto width = skip
+		+ userpic
+		+ skip * 2
+		+ text.maxWidth()
+		+ st::msgServicePadding.right();
+	Paint(p, st, sender, text, width, userpicView, y, w, chatWide, true);
+}
+
+void MonoforumSenderBar::Paint(
+		Painter &p,
+		not_null<const Ui::ChatStyle*> st,
+		not_null<PeerData*> sender,
+		const Ui::Text::String &text,
+		int width,
+		Ui::PeerUserpicView &view,
+		int y,
+		int w,
+		bool chatWide,
+		bool skipPatternLine) {
+	Expects(sender != nullptr);
+
+	int left = st::msgServiceMargin.left();
+	const auto maxwidth = chatWide
+		? std::min(w, WideChatWidth())
+		: w;
+	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+	const auto use = std::min(w, width);
+
+	left += (w - use) / 2;
+	int h = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	ServiceMessagePainter::PaintBubble(
+		p,
+		st->msgServiceBg(),
+		st->serviceBgCornersNormal(),
+		QRect(left, y + st::msgServiceMargin.top(), use, h));
+
+	const auto skip = st::monoforumBarUserpicSkip;
+	if (!skipPatternLine) {
+		auto pen = st->msgServiceBg()->p;
+		pen.setWidthF(skip);
+		pen.setCapStyle(Qt::RoundCap);
+		pen.setDashPattern({ 2., 2. });
+		p.setPen(pen);
+		const auto top = y + st::msgServiceMargin.top() + (h / 2);
+		p.drawLine(0, top, left, top);
+		p.drawLine(left + use, top, 2 * w, top);
+	}
+
+	const auto userpic = st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		- 2 * skip;
+	const auto available = use - (skip + userpic + skip * 2 + st::msgServicePadding.right());
+
+	sender->paintUserpic(p, view, left + skip, y + st::msgServiceMargin.top() + skip, userpic);
+
+	p.setFont(st::msgServiceFont);
+	p.setPen(st->msgServiceFg());
+	text.draw(p, {
+		.position = {
+			left + skip + userpic + skip * 2,
+			y + st::msgServiceMargin.top() + st::msgServicePadding.top(),
+		},
+		.availableWidth = available,
+		.elisionLines = 1,
+	});
+}
+
+void ServicePreMessage::init(
+		not_null<Element*> view,
+		PreparedServiceText string,
+		ClickHandlerPtr fullClickHandler,
+		std::unique_ptr<Media> media) {
+	text = Ui::Text::String(
+		st::serviceTextStyle,
+		string.text,
+		kMarkupTextOptions,
+		st::msgMinWidth,
+		Core::TextContext({
+			.session = &view->history()->session(),
+			.repaint = [=] { view->customEmojiRepaint(); },
+		}));
+	handler = std::move(fullClickHandler);
+	for (auto i = 0; i != int(string.links.size()); ++i) {
+		text.setLink(i + 1, string.links[i]);
+	}
+	this->media = std::move(media);
+}
+
+int ServicePreMessage::resizeToWidth(int newWidth, ElementChatMode mode) {
 	width = newWidth;
-	if (chatWide) {
+	if (mode == ElementChatMode::Wide) {
 		accumulate_min(
 			width,
 			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 	}
-	auto contentWidth = width;
-	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
-	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
-		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+
+	if (media) {
+		media->initDimensions();
+		media->resizeGetHeight(width);
 	}
 
-	auto maxWidth = text.maxWidth()
-		+ st::msgServicePadding.left()
-		+ st::msgServicePadding.right();
-	auto minHeight = text.minHeight();
+	if (media && media->hideServiceText()) {
+		height = media->height() + st::msgServiceMargin.bottom();
+	} else {
+		auto contentWidth = width;
+		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.right();
+		if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+			contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+		}
 
-	auto nwidth = qMax(contentWidth
-		- st::msgServicePadding.left()
-		- st::msgServicePadding.right(), 0);
-	height = (contentWidth >= maxWidth)
-		? minHeight
-		: text.countHeight(nwidth);
-	height += st::msgServicePadding.top()
-		+ st::msgServicePadding.bottom()
-		+ st::msgServiceMargin.top()
-		+ st::msgServiceMargin.bottom();
+		auto maxWidth = text.maxWidth()
+			+ st::msgServicePadding.left()
+			+ st::msgServicePadding.right();
+		auto minHeight = text.minHeight();
+
+		auto nwidth = qMax(contentWidth
+			- st::msgServicePadding.left()
+			- st::msgServicePadding.right(), 0);
+		height = (contentWidth >= maxWidth)
+			? minHeight
+			: text.countHeight(nwidth);
+		height += st::msgServicePadding.top()
+			+ st::msgServicePadding.bottom()
+			+ st::msgServiceMargin.top()
+			+ st::msgServiceMargin.bottom();
+	}
+
 	return height;
 }
 
@@ -429,37 +667,81 @@ void ServicePreMessage::paint(
 		Painter &p,
 		const PaintContext &context,
 		QRect g,
-		bool chatWide) const {
-	const auto top = g.top() - height - st::msgMargin.top();
-	p.translate(0, top);
+		ElementChatMode mode) const {
+	if (media && media->hideServiceText()) {
+		const auto left = (width - media->width()) / 2;
+		const auto top = g.top() - height - st::msgMargin.bottom();
+		const auto position = QPoint(left, top);
+		p.translate(position);
+		media->draw(p, context.selected()
+			? context.translated(-position)
+			: context.translated(-position).withSelection({}));
+		p.translate(-position);
+	} else {
+		const auto top = g.top() - height - st::msgMargin.top();
+		p.translate(0, top);
 
-	const auto rect = QRect(0, 0, width, height)
+		const auto rect = QRect(0, 0, width, height)
+			- st::msgServiceMargin;
+		const auto trect = rect - st::msgServicePadding;
+
+		ServiceMessagePainter::PaintComplexBubble(
+			p,
+			context.st,
+			rect.left(),
+			rect.width(),
+			text,
+			trect);
+
+		p.setBrush(Qt::NoBrush);
+		p.setPen(context.st->msgServiceFg());
+		p.setFont(st::msgServiceFont);
+		text.draw(p, {
+			.position = trect.topLeft(),
+			.availableWidth = trect.width(),
+			.align = style::al_top,
+			.palette = &context.st->serviceTextPalette(),
+			.now = context.now,
+			.fullWidthSelection = false,
+			//.selection = context.selection,
+		});
+
+		p.translate(0, -top);
+	}
+}
+
+ClickHandlerPtr ServicePreMessage::textState(
+		QPoint point,
+		const StateRequest &request,
+		QRect g) const {
+	if (media && media->hideServiceText()) {
+		const auto left = (width - media->width()) / 2;
+		const auto top = g.top() - height - st::msgMargin.bottom();
+		const auto position = QPoint(left, top);
+		return media->textState(point - position, request).link;
+	}
+	const auto top = g.top() - height - st::msgMargin.top();
+	const auto rect = QRect(0, top, width, height)
 		- st::msgServiceMargin;
 	const auto trect = rect - st::msgServicePadding;
-
-	ServiceMessagePainter::PaintComplexBubble(
-		p,
-		context.st,
-		rect.left(),
-		rect.width(),
-		text,
-		trect);
-
-	p.setBrush(Qt::NoBrush);
-	p.setPen(context.st->msgServiceFg());
-	p.setFont(st::msgServiceFont);
-	text.draw(p, {
-		.position = trect.topLeft(),
-		.availableWidth = trect.width(),
-		.align = style::al_top,
-		.palette = &context.st->serviceTextPalette(),
-		.now = context.now,
-		.fullWidthSelection = false,
-		//.selection = context.selection,
-	});
-
-	p.translate(0, -top);
+	if (trect.contains(point)) {
+		auto textRequest = request.forText();
+		textRequest.align = style::al_center;
+		const auto link = text.getState(
+			point - trect.topLeft(),
+			trect.width(),
+			textRequest).link;
+		if (link) {
+			return link;
+		}
+	}
+	if (handler && rect.contains(point)) {
+		return handler;
+	}
+	return {};
 }
+
+
 
 void FakeBotAboutTop::init() {
 	if (!text.isEmpty()) {
@@ -507,6 +789,10 @@ Element::Element(
 			AddComponents(FakeBotAboutTop::Bit());
 		}
 	}
+}
+
+bool Element::embedReactionsInBubble() const {
+	return false;
 }
 
 not_null<ElementDelegate*> Element::delegate() const {
@@ -747,7 +1033,8 @@ not_null<PurchasedTag*> Element::enforcePurchasedTag() {
 int Element::AdditionalSpaceForSelectionCheckbox(
 		not_null<const Element*> view,
 		QRect countedGeometry) {
-	if (!view->hasOutLayout() || view->delegate()->elementIsChatWide()) {
+	if (!view->hasOutLayout()
+		|| view->delegate()->elementChatMode() == ElementChatMode::Wide) {
 		return 0;
 	}
 	if (countedGeometry.isEmpty()) {
@@ -822,6 +1109,16 @@ void Element::refreshMedia(Element *replacing) {
 				this,
 				std::make_unique<LargeEmoji>(this, emoji));
 		}
+	} else if (const auto decision = item->Get<HistoryServiceSuggestDecision>()) {
+		_media = std::make_unique<MediaGeneric>(
+			this,
+			GenerateSuggestDecisionMedia(this, decision),
+			MediaGenericDescriptor{
+				.maxWidth = st::chatSuggestInfoWidth,
+				.fullAreaLink = decision->lnk,
+				.service = true,
+				.hideServiceText = true,
+			});
 	} else {
 		_media = nullptr;
 	}
@@ -1041,6 +1338,16 @@ void Element::validateText() {
 			? _textItem->customTextLinks()
 			: contextDependentText.links;
 		setTextWithLinks(markedText, customLinks);
+
+		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
+			if (!done->completed.empty() && !done->incompleted.empty()) {
+				setServicePreMessage(
+					item->composeTodoIncompleted(done),
+					done->lnk);
+			} else {
+				setServicePreMessage({});
+			}
+		}
 	} else {
 		const auto unavailable = item->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
@@ -1054,10 +1361,10 @@ void Element::validateText() {
 void Element::setTextWithLinks(
 		const TextWithEntities &text,
 		const std::vector<ClickHandlerPtr> &links) {
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
+		.repaint = [=] { customEmojiRepaint(); },
+	});
 	if (_flags & Flag::ServiceMessage) {
 		const auto &options = Ui::ItemTextServiceOptions();
 		_text.setMarkedText(st::serviceTextStyle, text, options, context);
@@ -1103,6 +1410,7 @@ void Element::validateTextSkipBlock(bool has, int width, int height) {
 }
 
 void Element::previousInBlocksChanged() {
+	recountMonoforumSenderBarInBlocks();
 	recountDisplayDateInBlocks();
 	recountAttachToPreviousInBlocks();
 }
@@ -1138,7 +1446,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
 	if (!Has<DateBadge>()
 		&& !Has<UnreadBar>()
-		&& !Has<ServicePreMessage>()) {
+		&& !Has<ServicePreMessage>()
+		&& !Has<MonoforumSenderBar>()) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto possible = (std::abs(prev->date() - item->date())
@@ -1250,6 +1559,14 @@ bool Element::isInOneDayWithPrevious() const {
 	return !data()->isEmpty() && !displayDate();
 }
 
+bool Element::displayMonoforumSender() const {
+	return Has<MonoforumSenderBar>();
+}
+
+bool Element::isInOneBunchWithPrevious() const {
+	return !data()->isEmpty() && !displayMonoforumSender();
+}
+
 void Element::recountAttachToPreviousInBlocks() {
 	if (isHidden() || data()->isEmpty()) {
 		if (const auto next = nextDisplayedInBlocks()) {
@@ -1268,6 +1585,37 @@ void Element::recountAttachToPreviousInBlocks() {
 	setAttachToPrevious(attachToPrevious, previous);
 }
 
+void Element::recountMonoforumSenderBarInBlocks() {
+	const auto item = data();
+	const auto sublist = item->savedSublist();
+	const auto parentChat = sublist ? sublist->parentChat() : nullptr;
+	const auto barPeer = [&]() -> PeerData* {
+		if (!parentChat
+			|| isHidden()
+			|| item->isEmpty()
+			|| item->isSponsored()) {
+			return nullptr;
+		}
+		const auto sublistPeer = sublist->sublistPeer();
+		if (const auto previous = previousDisplayedInBlocks()) {
+			const auto prev = previous->data();
+			if (const auto prevSublist = prev->savedSublist()) {
+				Assert(prevSublist->parentChat() == parentChat);
+				if (prevSublist->sublistPeer() == sublistPeer) {
+					return nullptr;
+				}
+			}
+		}
+		return (sublistPeer == parentChat) ? nullptr : sublistPeer.get();
+	}();
+	if (barPeer && !Has<MonoforumSenderBar>()) {
+		AddComponents(MonoforumSenderBar::Bit());
+		Get<MonoforumSenderBar>()->init(parentChat, barPeer);
+	} else if (!barPeer && Has<MonoforumSenderBar>()) {
+		RemoveComponents(MonoforumSenderBar::Bit());
+	}
+}
+
 void Element::recountDisplayDateInBlocks() {
 	setDisplayDate([&] {
 		const auto item = data();
@@ -1280,7 +1628,7 @@ void Element::recountDisplayDateInBlocks() {
 
 		if (const auto previous = previousDisplayedInBlocks()) {
 			const auto prev = previous->data();
-			return prev->isEmpty()
+			return prev->hideDisplayDate()
 				|| (previous->dateTime().date() != dateTime().date());
 		}
 		return true;
@@ -1310,6 +1658,9 @@ bool Element::countIsTopicRootReply() const {
 
 void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
+	if (item->hideDisplayDate()) {
+		displayDate = false;
+	}
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
 		Get<DateBadge>()->init(
@@ -1321,11 +1672,18 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
-void Element::setServicePreMessage(TextWithEntities text) {
-	if (!text.empty()) {
+void Element::setServicePreMessage(
+		PreparedServiceText text,
+		ClickHandlerPtr fullClickHandler,
+		std::unique_ptr<Media> media) {
+	if (!text.text.empty() || media) {
 		AddComponents(ServicePreMessage::Bit());
 		const auto service = Get<ServicePreMessage>();
-		service->init(std::move(text));
+		service->init(
+			this,
+			std::move(text),
+			std::move(fullClickHandler),
+			std::move(media));
 		setPendingResize();
 	} else if (Has<ServicePreMessage>()) {
 		RemoveComponents(ServicePreMessage::Bit());
@@ -1414,7 +1772,8 @@ bool Element::hasOutLayout() const {
 }
 
 bool Element::hasRightLayout() const {
-	return hasOutLayout() && !_delegate->elementIsChatWide();
+	return hasOutLayout()
+		&& (_delegate->elementChatMode() != ElementChatMode::Wide);
 }
 
 bool Element::drawBubble() const {
@@ -1427,14 +1786,6 @@ bool Element::hasBubble() const {
 
 bool Element::unwrapped() const {
 	return true;
-}
-
-bool Element::hasFastReply() const {
-	return false;
-}
-
-bool Element::displayFastReply() const {
-	return false;
 }
 
 std::optional<QSize> Element::rightActionSize() const {
@@ -1507,7 +1858,122 @@ bool Element::isSignedAuthorElided() const {
 	return false;
 }
 
+void Element::setupReactions(Element *replacing) {
+	refreshReactions();
+	auto animations = replacing
+		? replacing->takeReactionAnimations()
+		: base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>>();
+	if (!animations.empty()) {
+		const auto repainter = [=] { repaint(); };
+		for (const auto &[id, animation] : animations) {
+			animation->setRepaintCallback(repainter);
+		}
+		if (_reactions) {
+			_reactions->continueAnimations(std::move(animations));
+		}
+	}
+}
+
+void Element::refreshReactions() {
+	using namespace Reactions;
+	auto reactionsData = InlineListDataFromMessage(this);
+	if (reactionsData.reactions.empty()) {
+		setReactions(nullptr);
+		return;
+	}
+	if (!_reactions) {
+		const auto handlerFactory = [=](ReactionId id) {
+			const auto weak = base::make_weak(this);
+			return std::make_shared<LambdaClickHandler>([=](
+					ClickContext context) {
+				const auto strong = weak.get();
+				if (!strong) {
+					return;
+				}
+				const auto item = strong->data();
+				const auto controller = ExtractController(context);
+				if (item->reactionsAreTags()) {
+					if (item->history()->session().premium()) {
+						const auto tag = Data::SearchTagToQuery(id);
+						HashtagClickHandler(tag).onClick(context);
+					} else if (controller) {
+						ShowPremiumPreviewBox(
+							controller,
+							PremiumFeature::TagsForMessages);
+					}
+					return;
+				}
+				if (id.paid()) {
+					Payments::TryAddingPaidReaction(
+						item,
+						weak.get(),
+						1,
+						std::nullopt,
+						controller->uiShow());
+					return;
+				} else {
+					const auto source = HistoryReactionSource::Existing;
+					item->toggleReaction(id, source);
+				}
+				if (const auto now = weak.get()) {
+					const auto chosen = now->data()->chosenReactions();
+					if (id.paid() || ranges::contains(chosen, id)) {
+						now->animateReaction({
+							.id = id,
+						});
+					}
+				}
+			});
+		};
+		setReactions(std::make_unique<InlineList>(
+			&history()->owner().reactions(),
+			handlerFactory,
+			[=] { customEmojiRepaint(); },
+			std::move(reactionsData)));
+	} else {
+		auto was = _reactions->computeTagsList();
+		_reactions->update(std::move(reactionsData), width());
+		auto now = _reactions->computeTagsList();
+		if (!was.empty() || !now.empty()) {
+			auto &owner = history()->owner();
+			owner.viewTagsChanged(this, std::move(was), std::move(now));
+		}
+	}
+}
+
+void Element::setReactions(std::unique_ptr<Reactions::InlineList> list) {
+	auto was = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	_reactions = std::move(list);
+	auto now = _reactions
+		? _reactions->computeTagsList()
+		: std::vector<Data::ReactionId>();
+	if (!was.empty() || !now.empty()) {
+		auto &owner = history()->owner();
+		owner.viewTagsChanged(this, std::move(was), std::move(now));
+	}
+}
+
+bool Element::updateReactions() {
+	const auto wasReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	refreshReactions();
+	const auto nowReactions = _reactions
+		? _reactions->currentSize()
+		: QSize();
+	return (wasReactions != nowReactions);
+}
+
 void Element::itemDataChanged() {
+	if (updateReactions()) {
+		history()->owner().requestViewResize(this);
+	} else {
+		repaint();
+	}
 }
 
 void Element::itemTextUpdated() {
@@ -1531,6 +1997,9 @@ void Element::blockquoteExpandChanged() {
 
 void Element::unloadHeavyPart() {
 	history()->owner().unregisterHeavyViewPart(this);
+	if (_reactions) {
+		_reactions->unloadCustomEmoji();
+	}
 	if (_media) {
 		_media->unloadHeavyPart();
 	}
@@ -1725,6 +2194,11 @@ TextSelection Element::FindSelectionFromQuote(
 		return {};
 	}
 	const auto &original = quote.item->originalText();
+	if (quote.offset == kSearchQueryOffsetHint) {
+		return ApplyModificationsFrom(
+			FindSearchQueryHighlight(original.text, quote.text.text),
+			text);
+	}
 	const auto length = int(original.text.size());
 	const auto qlength = int(quote.text.text.size());
 	const auto checkAt = [&](int offset) {
@@ -1788,28 +2262,7 @@ TextSelection Element::FindSelectionFromQuote(
 	if (result.empty()) {
 		return {};
 	}
-	for (const auto &modification : text.modifications()) {
-		if (modification.position >= result.to) {
-			break;
-		}
-		if (modification.added) {
-			++result.to;
-		}
-		const auto shiftTo = std::min(
-			int(modification.skipped),
-			result.to - modification.position);
-		result.to -= shiftTo;
-		if (modification.position <= result.from) {
-			if (modification.added) {
-				++result.from;
-			}
-			const auto shiftFrom = std::min(
-				int(modification.skipped),
-				result.from - modification.position);
-			result.from -= shiftFrom;
-		}
-	}
-	return result;
+	return ApplyModificationsFrom(result, text);
 }
 
 Reactions::ButtonParameters Element::reactionButtonParameters(
@@ -1847,9 +2300,6 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
-}
-
 void Element::animateUnreadReactions() {
 	const auto &recent = data()->recentReactions();
 	for (const auto &[id, list] : recent) {
@@ -1863,6 +2313,9 @@ auto Element::takeReactionAnimations()
 -> base::flat_map<
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>> {
+	if (_reactions) {
+		return _reactions->takeAnimations();
+	}
 	return {};
 }
 
@@ -1882,6 +2335,8 @@ QRect Element::effectIconGeometry() const {
 }
 
 Element::~Element() {
+	setReactions(nullptr);
+
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();
 	base::take(_media);
@@ -1945,6 +2400,57 @@ void Element::ClearGlobal() {
 	HoveredLinkElement = nullptr;
 	PressedLinkElement = nullptr;
 	MousedElement = nullptr;
+}
+
+int FindViewY(not_null<Element*> view, uint16 symbol, int yfrom) {
+	auto request = HistoryView::StateRequest();
+	request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
+	const auto single = st::messageTextStyle.font->height;
+	const auto inner = view->innerGeometry();
+	const auto origin = inner.topLeft();
+	const auto top = 0;
+	const auto bottom = view->height();
+	if (origin.y() < top
+		|| origin.y() + inner.height() > bottom
+		|| inner.height() <= 0) {
+		return yfrom;
+	}
+	const auto fory = [&](int y) {
+		return view->textState(origin + QPoint(0, y), request).symbol;
+	};
+	yfrom = std::max(yfrom - origin.y(), 0);
+	auto ytill = inner.height() - 1;
+	auto symbolfrom = fory(yfrom);
+	auto symboltill = fory(ytill);
+	if ((yfrom >= ytill) || (symbolfrom >= symbol)) {
+		return origin.y() + yfrom;
+	} else if (symboltill <= symbol) {
+		return origin.y() + ytill;
+	}
+	while (ytill - yfrom >= 2 * single) {
+		const auto middle = (yfrom + ytill) / 2;
+		const auto found = fory(middle);
+		if (found == symbol
+			|| symbolfrom > found
+			|| symboltill < found) {
+			return middle;
+		} else if (found < symbol) {
+			yfrom = middle;
+			symbolfrom = found;
+		} else {
+			ytill = middle;
+			symboltill = found;
+		}
+	}
+	return origin.y() + (yfrom + ytill) / 2;
+}
+
+Window::SessionController *ExtractController(const ClickContext &context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		return controller;
+	}
+	return nullptr;
 }
 
 } // namespace HistoryView

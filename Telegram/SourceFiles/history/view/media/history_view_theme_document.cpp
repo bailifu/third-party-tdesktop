@@ -91,7 +91,8 @@ ThemeDocument::ThemeDocument(
 : File(parent, parent->data())
 , _data(document)
 , _serviceWidth(serviceWidth) {
-	Expects(params.has_value() || _data->hasThumbnail() || _data->isTheme());
+	Expects(params.has_value()
+		|| (_data && (_data->hasThumbnail() || _data->isTheme())));
 
 	if (params) {
 		_background = params->backgroundColors();
@@ -508,8 +509,8 @@ QSize ThemeDocumentBox::size() {
 		: QSize(st::msgServicePhotoWidth, st::msgServicePhotoWidth);
 }
 
-QString ThemeDocumentBox::title() {
-	return QString();
+TextWithEntities ThemeDocumentBox::title() {
+	return {};
 }
 
 TextWithEntities ThemeDocumentBox::subtitle() {

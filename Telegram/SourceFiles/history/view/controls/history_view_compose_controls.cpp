@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_messages.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -53,8 +54,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
-#include "history/view/controls/history_view_voice_record_bar.h"
+#include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_webpage_preview.h"
@@ -83,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/spoiler_mess.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/window_adaptive.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "styles/style_chat.h"
@@ -132,7 +135,10 @@ public:
 	void updateTopicRootId(MsgId topicRootId);
 	void init();
 
-	void editMessage(FullMsgId id, bool photoEditAllowed = false);
+	void editMessage(
+		FullMsgId id,
+		SuggestPostOptions suggest,
+		bool photoEditAllowed = false);
 	void replyToMessage(FullReplyTo id);
 	void updateForwarding(
 		Data::Thread *thread,
@@ -146,6 +152,7 @@ public:
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
+	[[nodiscard]] const Data::ResolvedForwardDraft &forwardDraft() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
@@ -156,6 +163,7 @@ public:
 	[[nodiscard]] SendMenu::Details saveMenuDetails(bool hasSendText) const;
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
+	[[nodiscard]] SuggestPostOptions suggestOptions() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
 		return _editCancelled.events();
 	}
@@ -167,6 +175,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> previewCancelled() const {
 		return _previewCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> saveDraftRequests() const {
+		return _saveDraftRequests.events();
 	}
 
 	[[nodiscard]] rpl::producer<bool> visibleChanged();
@@ -185,6 +196,9 @@ private:
 
 	bool hasPreview() const;
 
+	void applySuggestOptions(SuggestPostOptions suggest, SuggestMode mode);
+	void cancelSuggestPost();
+
 	struct Preview {
 		Controls::WebpageParsed parsed;
 		Ui::Text::String title;
@@ -196,17 +210,20 @@ private:
 
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
+	PeerId _monoforumPeerId = 0;
 
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
 	rpl::event_stream<> _replyCancelled;
 	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
+	rpl::event_stream<> _saveDraftRequests;
 	rpl::lifetime _previewLifetime;
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullReplyTo> _replyTo;
 	std::unique_ptr<ForwardPanel> _forwardPanel;
+	std::unique_ptr<SuggestOptions> _suggestOptions;
 	rpl::producer<> _toForwardUpdated;
 
 	HistoryItem *_shownMessage = nullptr;
@@ -253,6 +270,7 @@ FieldHeader::FieldHeader(
 void FieldHeader::setHistory(const SetHistoryArgs &args) {
 	_history = *args.history;
 	_topicRootId = args.topicRootId;
+	_monoforumPeerId = args.monoforumPeerId;
 }
 
 void FieldHeader::updateTopicRootId(MsgId topicRootId) {
@@ -277,27 +295,29 @@ void FieldHeader::init() {
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
 		const auto position = st::historyReplyIconPosition;
-		if (_preview.parsed) {
+		if (_suggestOptions) {
+			_suggestOptions->paintIcon(p, 0, 0, width());
+		} else if (_preview.parsed) {
 			st::historyLinkIcon.paint(p, position, width());
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
-		} else if (readyToForward()) {
-			st::historyForwardIcon.paint(p, position, width());
-		} else if (const auto reply = replyingToMessage()) {
+		} else if (const auto reply = replyingToMessage(); reply.replying()) {
 			if (!reply.quote.empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
 				st::historyReplyIcon.paint(p, position, width());
 			}
+		} else if (readyToForward()) {
+			st::historyForwardIcon.paint(p, position, width());
 		}
 
 		if (_preview.parsed) {
 			paintWebPage(
 				p,
 				_history ? _history->peer : _data->session().user());
-		} else if (isEditingMessage() || !readyToForward()) {
+		} else if (isEditingMessage() || replyingToMessage()) {
 			paintEditOrReplyToMessage(p);
-		} else {
+		} else if (readyToForward()) {
 			paintForwardInfo(p);
 		}
 	}, lifetime());
@@ -339,10 +359,10 @@ void FieldHeader::init() {
 			_previewCancelled.fire({});
 		} else if (_editMsgId.current()) {
 			_editCancelled.fire({});
-		} else if (readyToForward()) {
-			_forwardCancelled.fire({});
 		} else if (_replyTo.current()) {
 			_replyCancelled.fire({});
+		} else if (readyToForward()) {
+			_forwardCancelled.fire({});
 		}
 		updateVisible();
 		update();
@@ -381,7 +401,7 @@ void FieldHeader::init() {
 			return;
 		}
 		const auto e = static_cast<QMouseEvent*>(event.get());
-		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
+		const auto pos = e->pos();
 		const auto inPreviewRect = _clickableRect.contains(pos);
 		const auto inPhotoEdit = _shownMessageHasPreview
 			&& _photoEditAllowed
@@ -400,15 +420,16 @@ void FieldHeader::init() {
 				if (_preview.parsed) {
 					_editOptionsRequests.fire({});
 				} else if (isEditingMessage()) {
-					_jumpToItemRequests.fire(FullReplyTo{
-						.messageId = _editMsgId.current()
-					});
-				} else if (readyToForward()) {
-					_forwardPanel->editOptions(_show);
-				} else if (reply
-					&& (e->modifiers() & Qt::ControlModifier)) {
+					if (_suggestOptions) {
+						_suggestOptions->edit();
+					} else {
+						_jumpToItemRequests.fire(FullReplyTo{
+							.messageId = _editMsgId.current()
+						});
+					}
+				} else if (reply && (e->modifiers() & Qt::ControlModifier)) {
 					_jumpToItemRequests.fire_copy(reply);
-				} else if (reply) {
+				} else if (reply || readyToForward()) {
 					_editOptionsRequests.fire({});
 				}
 			} else if (!isLeftButton) {
@@ -419,6 +440,8 @@ void FieldHeader::init() {
 						_hasSendText());
 				} else if (const auto reply = replyingToMessage()) {
 					_jumpToItemRequests.fire_copy(reply);
+				} else if (readyToForward()) {
+					_forwardPanel->editToNextOption();
 				}
 			}
 		}
@@ -428,10 +451,10 @@ void FieldHeader::init() {
 void FieldHeader::updateShownMessageText() {
 	Expects(_shownMessage != nullptr);
 
-	const auto context = Core::MarkedTextContext{
+	const auto context = Core::TextContext({
 		.session = &_data->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
+		.repaint = [=] { customEmojiRepaint(); },
+	});
 	const auto reply = replyingToMessage();
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
@@ -464,11 +487,10 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 			tr::lng_edit_message(tr::now),
 			Ui::NameTextOptions());
 	} else if (item) {
-		const auto context = Core::MarkedTextContext{
+		const auto context = Core::TextContext({
 			.session = &_history->session(),
-			.customEmojiRepaint = [] {},
 			.customEmojiLoopLimit = 1,
-		};
+		});
 		const auto replyTo = _replyTo.current();
 		const auto quote = replyTo && !replyTo.quote.empty();
 		_shownMessageName.setMarkedText(
@@ -644,7 +666,11 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 			st::historyEditMedia.paintInCenter(p, to);
 			p.setOpacity(1.);
 		}
+	}
 
+	if (_suggestOptions) {
+		_suggestOptions->paintLines(p, textLeft, 0, width());
+		return;
 	}
 
 	p.setPen(st::historyReplyNameFg);
@@ -713,6 +739,10 @@ const HistoryItemsList &FieldHeader::forwardItems() const {
 	return _forwardPanel->items();
 }
 
+const Data::ResolvedForwardDraft &FieldHeader::forwardDraft() const {
+	return _forwardPanel->draft();
+}
+
 FullReplyTo FieldHeader::replyingToMessage() const {
 	return _replyTo.current();
 }
@@ -725,6 +755,12 @@ FullReplyTo FieldHeader::getDraftReply() const {
 	return isEditingMessage()
 		? FullReplyTo{ _editMsgId.current() }
 		: _replyTo.current();
+}
+
+SuggestPostOptions FieldHeader::suggestOptions() const {
+	return _suggestOptions
+		? _suggestOptions->values()
+		: SuggestPostOptions();
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
@@ -741,7 +777,10 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 		st::historyReplyPreview);
 }
 
-void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
+void FieldHeader::editMessage(
+		FullMsgId id,
+		SuggestPostOptions suggest,
+		bool photoEditAllowed) {
 	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
 	if (!id) {
@@ -753,10 +792,40 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 		_inPhotoEdit = false;
 		_inPhotoEditOver.stop();
 	}
+	if (id && suggest) {
+		applySuggestOptions(suggest, SuggestMode::Change);
+	} else {
+		cancelSuggestPost();
+	}
 	update();
 }
 
+void FieldHeader::applySuggestOptions(
+		SuggestPostOptions suggest,
+		SuggestMode mode) {
+	Expects(suggest.exists);
+
+	using namespace HistoryView;
+	_suggestOptions = std::make_unique<SuggestOptions>(
+		_show,
+		_history->peer,
+		suggest,
+		mode);
+	_suggestOptions->updates() | rpl::start_with_next([=] {
+		update();
+		_saveDraftRequests.fire({});
+	}, _suggestOptions->lifetime());
+}
+
+void FieldHeader::cancelSuggestPost() {
+	if (!_suggestOptions) {
+		return;
+	}
+	_suggestOptions = nullptr;
+}
+
 void FieldHeader::replyToMessage(FullReplyTo id) {
+	id.monoforumPeerId = 0;
 	_replyTo = id;
 }
 
@@ -764,9 +833,6 @@ void FieldHeader::updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items) {
 	_forwardPanel->update(thread, std::move(items));
-	if (readyToForward()) {
-		replyToMessage({});
-	}
 	updateControlsGeometry(size());
 }
 
@@ -797,6 +863,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 			.scheduled = item->isScheduled() ? item->date() : 0,
 			.shortcutId = item->shortcutId(),
 			.invertCaption = _mediaEditManager.invertCaption(),
+			.suggest = suggestOptions(),
 		},
 		.spoilered = _mediaEditManager.spoilered(),
 	};
@@ -956,6 +1023,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	unregisterDraftSources();
 	_history = history;
 	_topicRootId = args.topicRootId;
+	_monoforumPeerId = args.monoforumPeerId;
 	_historyLifetime.destroy();
 	_header->setHistory(args);
 	registerDraftSource();
@@ -999,6 +1067,8 @@ void ComposeControls::setCurrentDialogsEntryState(
 		Dialogs::EntryState state) {
 	unregisterDraftSources();
 	state.currentReplyTo.topicRootId = _topicRootId;
+	state.currentReplyTo.monoforumPeerId = _monoforumPeerId;
+	state.currentSuggest = SuggestPostOptions();
 	_currentDialogsEntryState = state;
 	updateForwarding();
 	registerDraftSource();
@@ -1034,13 +1104,15 @@ void ComposeControls::setAutocompleteBoundingRect(QRect rect) {
 rpl::producer<int> ComposeControls::height() const {
 	using namespace rpl::mappers;
 	return rpl::conditional(
-		_writeRestriction.value() | rpl::map(!_1),
+		rpl::combine(
+			_writeRestriction.value(),
+			_hidden.value()) | rpl::map(!_1 && !_2),
 		_wrap->heightValue(),
 		rpl::single(_st.attach.height));
 }
 
 int ComposeControls::heightCurrent() const {
-	return _writeRestriction.current()
+	return (_writeRestriction.current() || _hidden.current())
 		? _st.attach.height
 		: _wrap->height();
 }
@@ -1159,6 +1231,7 @@ bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
 			_editingId,
 			std::move(list),
 			_field->getTextWithTags(),
+			_header->suggestOptions(),
 			queryToEdit.spoilered,
 			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
@@ -1191,9 +1264,7 @@ void ComposeControls::showStarted() {
 	if (_attachBotsMenu) {
 		_attachBotsMenu->hideFast();
 	}
-	if (_voiceRecordBar) {
-		_voiceRecordBar->hideFast();
-	}
+	_voiceRecordBar->hideFast();
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}
@@ -1213,9 +1284,7 @@ void ComposeControls::showFinished() {
 	if (_attachBotsMenu) {
 		_attachBotsMenu->hideFast();
 	}
-	if (_voiceRecordBar) {
-		_voiceRecordBar->hideFast();
-	}
+	_voiceRecordBar->hideFast();
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}
@@ -1294,7 +1363,11 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 		const auto key = draftKeyCurrent();
 		_history->setDraft(
 			key,
-			std::make_unique<Data::Draft>(_field, id, _preview->draft()));
+			std::make_unique<Data::Draft>(
+				_field,
+				id,
+				SuggestPostOptions(),
+				_preview->draft()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
 	}
@@ -1398,6 +1471,7 @@ void ComposeControls::init() {
 			_photoEditMedia,
 			_editingId,
 			_field->getTextWithTags(),
+			_header->suggestOptions(),
 			queryToEdit.spoilered,
 			queryToEdit.options.invertCaption,
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
@@ -1407,17 +1481,24 @@ void ComposeControls::init() {
 	) | rpl::start_with_next([=] {
 		const auto history = _history;
 		const auto topicRootId = _topicRootId;
+		const auto monoforumPeerId = _monoforumPeerId;
 		const auto reply = _header->replyingToMessage();
+		const auto suggest = SuggestPostOptions();
 		const auto webpage = _preview->draft();
 
 		const auto done = [=](
 				FullReplyTo replyTo,
-				Data::WebPageDraft webpage) {
+				Data::WebPageDraft webpage,
+				Data::ForwardDraft forward) {
 			if (replyTo) {
 				replyToMessage(replyTo);
 			} else {
 				cancelReplyMessage();
 			}
+			history->setForwardDraft(
+				topicRootId,
+				monoforumPeerId,
+				std::move(forward));
 			_preview->apply(webpage);
 			_field->setFocus();
 		};
@@ -1430,8 +1511,9 @@ void ComposeControls::init() {
 		EditDraftOptions({
 			.show = _show,
 			.history = history,
-			.draft = Data::Draft(_field, reply, _preview->draft()),
+			.draft = Data::Draft(_field, reply, suggest, _preview->draft()),
 			.usedLink = _preview->link(),
+			.forward = _header->forwardDraft(),
 			.links = _preview->links(),
 			.resolver = _preview->resolver(),
 			.done = done,
@@ -1439,6 +1521,7 @@ void ComposeControls::init() {
 			.clearOldDraft = [=] { ClearDraftReplyTo(
 				history,
 				topicRootId,
+				monoforumPeerId,
 				replyToId); },
 		});
 	}, _wrap->lifetime());
@@ -1448,9 +1531,12 @@ void ComposeControls::init() {
 		if (_preview) {
 			_preview->apply({ .removed = true });
 		}
-		_saveDraftText = true;
-		_saveDraftStart = crl::now();
-		saveDraft();
+		saveDraftWithTextNow();
+	}, _wrap->lifetime());
+
+	_header->saveDraftRequests(
+	) | rpl::start_with_next([=] {
+		saveDraftWithTextNow();
 	}, _wrap->lifetime());
 
 	_header->editCancelled(
@@ -1685,9 +1771,7 @@ void ComposeControls::initFieldAutocomplete() {
 			if (!_showSlowmodeError || !_showSlowmodeError()) {
 				setText({});
 			}
-			//_saveDraftText = true;
-			//_saveDraftStart = crl::now();
-			//saveDraft();
+			//saveDraftWithTextNow();
 			// Won't be needed if SendInlineBotResult clears the cloud draft.
 			//saveCloudDraft();
 			_fileChosen.fire(std::move(data));
@@ -1712,6 +1796,9 @@ void ComposeControls::initFieldAutocomplete() {
 }
 
 void ComposeControls::updateFieldPlaceholder() {
+	_voiceRecordBar->setPauseInsteadSend(_history
+		&& _history->peer->starsPerMessageChecked() > 0);
+
 	if (!isEditingMessage() && _isInlineBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
@@ -1720,13 +1807,18 @@ void ComposeControls::updateFieldPlaceholder() {
 	}
 
 	_field->setPlaceholder([&] {
+		const auto peer = _history ? _history->peer.get() : nullptr;
 		if (_fieldCustomPlaceholder) {
 			return rpl::duplicate(_fieldCustomPlaceholder);
 		} else if (isEditingMessage()) {
 			return tr::lng_edit_message_text();
-		} else if (!_history) {
+		} else if (!peer) {
 			return tr::lng_message_ph();
-		} else if (const auto channel = _history->peer->asChannel()) {
+		} else if (const auto stars = peer->starsPerMessageChecked()) {
+			return tr::lng_message_stars_ph(
+				lt_count,
+				rpl::single(stars * 1.));
+		} else if (const auto channel = peer->asChannel()) {
 			if (channel->isBroadcast()) {
 				return session().data().notifySettings().silentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
@@ -1796,9 +1888,10 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 	switch (_currentDialogsEntryState.section) {
 	case Section::History:
 	case Section::Replies:
+	case Section::SavedSublist:
 		return (type == DraftType::Edit)
-			? Key::LocalEdit(_topicRootId)
-			: Key::Local(_topicRootId);
+			? Key::LocalEdit(_topicRootId, _monoforumPeerId)
+			: Key::Local(_topicRootId, _monoforumPeerId);
 	case Section::Scheduled:
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
@@ -1813,6 +1906,12 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 
 Data::DraftKey ComposeControls::draftKeyCurrent() const {
 	return draftKey(isEditingMessage() ? DraftType::Edit : DraftType::Normal);
+}
+
+void ComposeControls::saveDraftWithTextNow() {
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
 }
 
 void ComposeControls::saveDraft(bool delayed) {
@@ -1867,6 +1966,7 @@ void ComposeControls::registerDraftSource() {
 		const auto draft = [=] {
 			return Storage::MessageDraft{
 				_header->getDraftReply(),
+				_header->suggestOptions(),
 				_field->getTextWithTags(),
 				_preview->draft(),
 			};
@@ -1917,6 +2017,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	const auto editingId = (draft && draft == editDraft)
 		? draft->reply.messageId
 		: FullMsgId();
+	const auto editingSuggest = (draft && draft == editDraft)
+		? draft->suggest
+		: SuggestPostOptions();
 
 	InvokeQueued(_autocomplete.get(), [=] {
 		if (_autocomplete) {
@@ -1937,7 +2040,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		if (hadFocus) {
 			_field->setFocus();
 		}
-		_header->editMessage({});
+		_header->editMessage({}, {});
 		_header->replyToMessage({});
 		if (_preview) {
 			_preview->apply({ .removed = true });
@@ -1964,7 +2067,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			if (const auto item = _history->owner().message(editingId)) {
 				const auto media = item->media();
 				_canReplaceMedia = item->allowsEditMedia();
-				if (media) {
+				if (media && media->allowsEditMedia()) {
 					_canAddMedia = false;
 				} else {
 					_canAddMedia = base::take(_canReplaceMedia);
@@ -1984,7 +2087,10 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						Data::PhotoSize::Large,
 						item->fullId());
 				}
-				_header->editMessage(editingId, _photoEditMedia != nullptr);
+				_header->editMessage(
+					editingId,
+					editingSuggest,
+					_photoEditMedia != nullptr);
 				if (_preview) {
 					_preview->apply(
 						Data::WebPageDraft::FromItem(item),
@@ -1995,7 +2101,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			}
 			_canReplaceMedia = _canAddMedia = false;
 			_photoEditMedia = nullptr;
-			_header->editMessage(editingId, false);
+			_header->editMessage(editingId, SuggestPostOptions(), false);
 			return false;
 		};
 		if (!resolve()) {
@@ -2017,10 +2123,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_canReplaceMedia = _canAddMedia = false;
 		_photoEditMedia = nullptr;
 		_header->replyToMessage(draft->reply);
-		if (_header->replyingToMessage()) {
-			cancelForward();
-		}
-		_header->editMessage({});
+		_header->editMessage({}, {});
 		if (_preview) {
 			_preview->setDisabled(false);
 		}
@@ -2029,7 +2132,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 }
 
 void ComposeControls::cancelForward() {
-	_history->setForwardDraft(_topicRootId, {});
+	_history->setForwardDraft(_topicRootId, _monoforumPeerId, {});
 	updateForwarding();
 }
 
@@ -2158,6 +2261,10 @@ void ComposeControls::initSendButton() {
 		_recordAvailability = value;
 		updateSendButtonType();
 	}, _send->lifetime());
+
+	_send->widthValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		updateControlsGeometry(_wrap->size());
+	}, _send->lifetime());
 }
 
 void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
@@ -2225,7 +2332,7 @@ void SetupRestrictionView(
 		not_null<Ui::RpWidget*> widget,
 		not_null<const style::ComposeControls*> st,
 		std::shared_ptr<ChatHelpers::Show> show,
-		const QString &name,
+		not_null<PeerData*> peer,
 		rpl::producer<Controls::WriteRestriction> restriction,
 		Fn<void(QPainter &p, QRect clip)> paintBackground) {
 	struct State {
@@ -2237,7 +2344,9 @@ void SetupRestrictionView(
 	};
 	const auto state = widget->lifetime().make_state<State>();
 	state->updateGeometries = [=] {
-		if (!state->label) {
+		if (!state->label && state->button) {
+			state->button->setGeometry(widget->rect());
+		} else if (!state->label) {
 			return;
 		} else if (state->button) {
 			const auto available = widget->width()
@@ -2310,14 +2419,31 @@ void SetupRestrictionView(
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](Controls::WriteRestriction value) {
 		using Type = Controls::WriteRestriction::Type;
-		if (value.type == Type::Rights) {
+		if (value.type == Type::Frozen) {
+			state->icon = nullptr;
+			state->unlock = nullptr;
+			state->label = nullptr;
+			state->button = FrozenWriteRestriction(
+				widget,
+				show,
+				FrozenWriteRestrictionType::MessageField);
+		} else if (const auto lifting = value.boostsToLift) {
+			state->icon = nullptr;
+			state->unlock = nullptr;
+			state->label = nullptr;
+			state->button = BoostsToLiftWriteRestriction(
+				widget,
+				show,
+				peer,
+				lifting);
+		} else if (value.type == Type::Rights) {
 			state->icon = nullptr;
 			state->unlock = nullptr;
 			state->button = nullptr;
 			state->label = makeLabel(value.text, st->restrictionLabel);
 		} else if (value.type == Type::PremiumRequired) {
 			state->icon = makeIcon();
-			state->unlock = makeUnlock(value.button, name);
+			state->unlock = makeUnlock(value.button, peer->shortName());
 			state->button = std::make_unique<Ui::AbstractButton>(widget);
 			state->button->setClickedCallback([=] {
 				::Settings::ShowPremiumPromoToast(
@@ -2325,7 +2451,7 @@ void SetupRestrictionView(
 					tr::lng_send_non_premium_message_toast(
 						tr::now,
 						lt_user,
-						TextWithEntities{ name },
+						TextWithEntities{ peer->shortName() },
 						lt_link,
 						Ui::Text::Link(
 							Ui::Text::Bold(
@@ -2376,7 +2502,7 @@ void ComposeControls::initWriteRestriction() {
 		_writeRestricted.get(),
 		&_st,
 		_show,
-		_history->peer->shortName(),
+		_history->peer,
 		_writeRestriction.value(),
 		background);
 
@@ -2408,7 +2534,7 @@ void ComposeControls::initVoiceRecordBar() {
 	}, _wrap->lifetime());
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
-		const auto error = [&]() -> std::optional<QString> {
+		const auto error = [&]() -> Data::SendError {
 			const auto peer = _history ? _history->peer.get() : nullptr;
 			if (peer) {
 				if (const auto error = Data::RestrictionError(
@@ -2417,10 +2543,10 @@ void ComposeControls::initVoiceRecordBar() {
 					return error;
 				}
 			}
-			return std::nullopt;
+			return {};
 		}();
 		if (error) {
-			_show->showToast(*error);
+			Data::ShowSendErrorToast(_show, _history->peer, error);
 			return true;
 		} else if (_showSlowmodeError && _showSlowmodeError()) {
 			return true;
@@ -2533,14 +2659,18 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
 	const auto type = computeSendButtonType();
-	_send->setType(type);
-
 	const auto delay = [&] {
 		return (type != Type::Cancel && type != Type::Save)
 			? _slowmodeSecondsLeft.current()
 			: 0;
 	}();
-	_send->setSlowmodeDelay(delay);
+	const auto peer = _history ? _history->peer.get() : nullptr;
+	const auto stars = peer ? peer->starsPerMessageChecked() : 0;
+	_send->setState({
+		.type = type,
+		.slowmodeDelay = delay,
+		.starsToSend = stars,
+	});
 	_send->setDisabled(_sendDisabledBySlowmode.current()
 		&& (type == Type::Send
 			|| type == Type::Record
@@ -2866,9 +2996,11 @@ void ComposeControls::toggleTabbedSelectorMode() {
 				&& !_regularWindow->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
-			const auto topic = _history->peer->forumTopicFor(_topicRootId);
+			const auto thread = _history->threadFor(
+				_topicRootId,
+				_monoforumPeerId);
 			pushTabbedSelectorToThirdSection(
-				(topic ? topic : (Data::Thread*)_history),
+				thread ? thread : _history,
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
@@ -2903,6 +3035,12 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	if (_voiceRecordBar->isActive()) {
 		_show->showBox(Ui::MakeInformBox(tr::lng_edit_caption_voice()));
 		return;
+	} else if (const auto media = item->media()) {
+		if (const auto todolist = media->todolist()) {
+			Assert(_regularWindow != nullptr);
+			Window::PeerMenuEditTodoList(_regularWindow, item);
+			return;
+		}
 	}
 
 	if (!isEditingMessage()) {
@@ -2922,7 +3060,9 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 			FullReplyTo{
 				.messageId = item->fullId(),
 				.topicRootId = key.topicRootId(),
+				.monoforumPeerId = key.monoforumPeerId(),
 			},
+			SuggestPostOptions(),
 			cursor,
 			Data::WebPageDraft::FromItem(item)));
 	applyDraft();
@@ -2957,6 +3097,7 @@ bool ComposeControls::updateReplaceMediaButton() {
 				_regularWindow,
 				_editingId,
 				_field->getTextWithTags(),
+				_header->suggestOptions(),
 				queryToEdit.spoilered,
 				queryToEdit.options.invertCaption,
 				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
@@ -2971,10 +3112,7 @@ void ComposeControls::cancelEditMessage() {
 
 	_history->clearDraft(draftKey(DraftType::Edit));
 	applyDraft();
-
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 }
 
 void ComposeControls::maybeCancelEditMessage() {
@@ -3002,6 +3140,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	id.topicRootId = _topicRootId;
+	id.monoforumPeerId = _monoforumPeerId;
 	if (!id) {
 		cancelReplyMessage();
 		return;
@@ -3009,6 +3148,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 	if (isEditingMessage()) {
 		const auto key = draftKey(DraftType::Normal);
 		Assert(key.topicRootId() == id.topicRootId);
+		Assert(key.monoforumPeerId() == id.monoforumPeerId);
 		if (const auto localDraft = _history->draft(key)) {
 			localDraft->reply = id;
 		} else {
@@ -3017,19 +3157,14 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 				std::make_unique<Data::Draft>(
 					TextWithTags(),
 					id,
+					SuggestPostOptions(),
 					MessageCursor(),
 					Data::WebPageDraft()));
 		}
 	} else {
 		_header->replyToMessage(id);
-		if (_header->replyingToMessage()) {
-			cancelForward();
-		}
 	}
-
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
+	saveDraftWithTextNow();
 }
 
 void ComposeControls::cancelReplyMessage() {
@@ -3047,20 +3182,17 @@ void ComposeControls::cancelReplyMessage() {
 			}
 		}
 		if (wasReply) {
-			_saveDraftText = true;
-			_saveDraftStart = crl::now();
-			saveDraft();
+			saveDraftWithTextNow();
 		}
 	}
 }
 
 void ComposeControls::updateForwarding() {
-	const auto rootId = _topicRootId;
-	const auto thread = (_history && rootId)
-		? _history->peer->forumTopicFor(rootId)
+	const auto thread = (_history && (_topicRootId || _monoforumPeerId))
+		? _history->threadFor(_topicRootId, _monoforumPeerId)
 		: (Data::Thread*)_history;
 	_header->updateForwarding(thread, thread
-		? _history->resolveForwardDraft(rootId)
+		? _history->resolveForwardDraft(_topicRootId, _monoforumPeerId)
 		: Data::ResolvedForwardDraft());
 	updateSendButtonType();
 }
@@ -3075,11 +3207,11 @@ bool ComposeControls::handleCancelRequest() {
 	} else if (isEditingMessage()) {
 		maybeCancelEditMessage();
 		return true;
+	} else if (replyingToMessage().replying()) {
+		cancelReplyMessage();
+		return true;
 	} else if (readyToForward()) {
 		cancelForward();
-		return true;
-	} else if (replyingToMessage()) {
-		cancelReplyMessage();
 		return true;
 	}
 	return false;
@@ -3113,6 +3245,7 @@ void ComposeControls::initWebpageProcess() {
 		| Data::PeerUpdate::Flag::Notifications
 		| Data::PeerUpdate::Flag::MessagesTTL
 		| Data::PeerUpdate::Flag::FullInfo
+		| Data::PeerUpdate::Flag::StarsPerMessage
 	) | rpl::filter([peer = _history->peer](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -3127,6 +3260,9 @@ void ComposeControls::initWebpageProcess() {
 		}
 		if (flags & Data::PeerUpdate::Flag::MessagesTTL) {
 			updateMessagesTTLShown();
+		}
+		if (flags & Data::PeerUpdate::Flag::StarsPerMessage) {
+			updateFieldPlaceholder();
 		}
 		if (flags & Data::PeerUpdate::Flag::FullInfo) {
 			if (updateBotCommandShown()) {
@@ -3147,6 +3283,11 @@ void ComposeControls::initForwardProcess() {
 		if (const auto topic = update.entry->asTopic()) {
 			if (topic->history() == _history
 				&& topic->rootId() == _topicRootId) {
+				updateForwarding();
+			}
+		} else if (const auto sublist = update.entry->asSublist()) {
+			if (sublist->owningHistory() == _history
+				&& sublist->sublistPeer()->id == _monoforumPeerId) {
 				updateForwarding();
 			}
 		}
@@ -3172,6 +3313,7 @@ bool ComposeControls::isEditingMessage() const {
 FullReplyTo ComposeControls::replyingToMessage() const {
 	auto result = _header->replyingToMessage();
 	result.topicRootId = _topicRootId;
+	result.monoforumPeerId = _monoforumPeerId;
 	return result;
 }
 
@@ -3269,7 +3411,10 @@ void ComposeControls::updateInlineBotQuery() {
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
 			_inlineBotResolveRequestId = api.request(
-				MTPcontacts_ResolveUsername(MTP_string(username))
+				MTPcontacts_ResolveUsername(
+					MTP_flags(0),
+					MTP_string(username),
+					MTP_string())
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
 				Expects(result.type() == mtpc_contacts_resolvedPeer);
 
@@ -3381,6 +3526,10 @@ Fn<void()> ComposeControls::restoreTextCallback(
 			_field->textCursor().insertText(insertTextOnCancel);
 		}
 	});
+}
+
+Ui::InputField *ComposeControls::fieldForMention() const {
+	return _writeRestriction.current() ? nullptr : _field.get();
 }
 
 TextWithEntities ComposeControls::prepareTextForEditMsg() const {

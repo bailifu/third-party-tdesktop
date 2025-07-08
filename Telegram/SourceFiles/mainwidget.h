@@ -32,6 +32,7 @@ class Thread;
 class WallPaper;
 struct ForwardDraft;
 class Forum;
+class SavedMessages;
 struct ReportInput;
 } // namespace Data
 
@@ -213,6 +214,7 @@ public:
 	void showNonPremiumLimitToast(bool download);
 
 	void dialogsCancelled();
+	void toggleFiltersMenu(bool value) const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -243,7 +245,7 @@ private:
 
 	void setCurrentCall(Calls::Call *call);
 	void setCurrentGroupCall(Calls::GroupCall *call);
-	void createCallTopBar();
+	void createCallTopBar(Calls::Call *call, Calls::GroupCall *group);
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
 

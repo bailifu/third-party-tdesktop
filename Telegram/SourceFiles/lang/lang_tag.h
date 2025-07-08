@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class CreditsAmount;
+
 enum lngtag_count : int;
 
 namespace Lang {
@@ -26,6 +28,11 @@ struct ShortenedCount {
 };
 [[nodiscard]] ShortenedCount FormatCountToShort(int64 number);
 [[nodiscard]] QString FormatCountDecimal(int64 number);
+[[nodiscard]] QString FormatExactCountDecimal(float64 number);
+[[nodiscard]] ShortenedCount FormatCreditsAmountToShort(
+	CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountDecimal(CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountRounded(CreditsAmount amount);
 
 struct PluralResult {
 	int keyShift = 0;

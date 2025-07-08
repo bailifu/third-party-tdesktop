@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_wrap_widget.h"
 #include "info/statistics/info_statistics_tag.h"
+#include "ui/controls/swipe_handler_data.h"
+
+namespace Api {
+struct WhoReadList;
+} // namespace Api
 
 namespace Dialogs::Stories {
 struct Content;
@@ -19,6 +24,9 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+namespace Controls {
+struct SwipeHandlerArgs;
+} // namespace Controls
 class RoundRect;
 class ScrollArea;
 class InputField;
@@ -47,6 +55,15 @@ enum class Tab;
 namespace Info::Statistics {
 struct Tag;
 } // namespace Info::Statistics
+
+namespace Info::BotStarRef {
+enum class Type : uchar;
+struct Tag;
+} // namespace Info::BotStarRef
+
+namespace Info::GlobalMedia {
+struct Tag;
+} // namespace Info::GlobalMedia
 
 namespace Info {
 
@@ -106,6 +123,7 @@ public:
 	virtual void checkBeforeClose(Fn<void()> close) {
 		close();
 	}
+	virtual void checkBeforeCloseByEscape(Fn<void()> close);
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> subtitle() {
 		return nullptr;
@@ -117,7 +135,10 @@ public:
 
 	[[nodiscard]] int scrollBottomSkip() const;
 	[[nodiscard]] rpl::producer<int> scrollBottomSkipValue() const;
-	[[nodiscard]] rpl::producer<bool> desiredBottomShadowVisibility() const;
+	[[nodiscard]] virtual auto desiredBottomShadowVisibility()
+		-> rpl::producer<bool>;
+
+	void replaceSwipeHandler(Ui::Controls::SwipeHandlerArgs *incompleteArgs);
 
 protected:
 	template <typename Widget>
@@ -152,6 +173,8 @@ private:
 	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
 	void updateControlsGeometry();
 	void refreshSearchField(bool shown);
+	void setupSwipeHandler(not_null<Ui::RpWidget*> widget);
+	void updateInnerPadding();
 
 	virtual std::shared_ptr<ContentMemento> doCreateMemento() = 0;
 
@@ -166,6 +189,8 @@ private:
 	base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
 	QPointer<Ui::InputField> _searchField;
 	int _innerDesiredHeight = 0;
+	int _additionalScroll = 0;
+	int _addedHeight = 0;
 	int _maxVisibleHeight = 0;
 	bool _isStackBottom = false;
 
@@ -175,6 +200,9 @@ private:
 	// To paint round edges from content.
 	style::margins _paintPadding;
 
+	Ui::Controls::SwipeBackResult _swipeBackData;
+	rpl::lifetime _swipeHandlerLifetime;
+
 };
 
 class ContentMemento {
@@ -182,15 +210,22 @@ public:
 	ContentMemento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	explicit ContentMemento(Stories::Tag stories);
 	explicit ContentMemento(Statistics::Tag statistics);
+	explicit ContentMemento(BotStarRef::Tag starref);
+	explicit ContentMemento(GlobalMedia::Tag global);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
-	, _pollContextId(contextId) {
+	, _pollReactionsContextId(contextId) {
 	}
+	ContentMemento(
+		std::shared_ptr<Api::WhoReadList> whoReadIds,
+		FullMsgId contextId,
+		Data::ReactionId selected);
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -206,6 +241,9 @@ public:
 	Data::ForumTopic *topic() const {
 		return _topic;
 	}
+	Data::SavedSublist *sublist() const {
+		return _sublist;
+	}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
 	}
@@ -218,11 +256,29 @@ public:
 	Statistics::Tag statisticsTag() const {
 		return _statisticsTag;
 	}
+	PeerData *starrefPeer() const {
+		return _starrefPeer;
+	}
+	BotStarRef::Type starrefType() const {
+		return _starrefType;
+	}
 	PollData *poll() const {
 		return _poll;
 	}
 	FullMsgId pollContextId() const {
-		return _pollContextId;
+		return _poll ? _pollReactionsContextId : FullMsgId();
+	}
+	std::shared_ptr<Api::WhoReadList> reactionsWhoReadIds() const {
+		return _reactionsWhoReadIds;
+	}
+	Data::ReactionId reactionsSelected() const {
+		return _reactionsSelected;
+	}
+	FullMsgId reactionsContextId() const {
+		return _reactionsWhoReadIds ? _pollReactionsContextId : FullMsgId();
+	}
+	UserData *globalMediaSelf() const {
+		return _globalMediaSelf;
 	}
 	Key key() const;
 
@@ -259,12 +315,18 @@ private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
 	Data::ForumTopic *_topic = nullptr;
+	Data::SavedSublist *_sublist = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	Stories::Tab _storiesTab = {};
 	Statistics::Tag _statisticsTag;
+	PeerData * const _starrefPeer = nullptr;
+	BotStarRef::Type _starrefType = {};
 	PollData * const _poll = nullptr;
-	const FullMsgId _pollContextId;
+	std::shared_ptr<Api::WhoReadList> _reactionsWhoReadIds;
+	Data::ReactionId _reactionsSelected;
+	const FullMsgId _pollReactionsContextId;
+	UserData * const _globalMediaSelf = nullptr;
 
 	int _scrollTop = 0;
 	QString _searchFieldQuery;

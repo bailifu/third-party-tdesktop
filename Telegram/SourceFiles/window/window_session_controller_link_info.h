@@ -40,15 +40,18 @@ struct PeerByLinkInfo {
 	QString chatLinkSlug;
 	MsgId messageId = ShowAtUnreadMsgId;
 	StoryId storyId = 0;
+	std::optional<TimeId> videoTimestamp;
 	QString text;
 	RepliesByLinkInfo repliesInfo;
 	ResolveType resolveType = ResolveType::Default;
+	QString referral;
 	QString startToken;
 	ChatAdminRights startAdminRights;
 	bool startAutoSubmit = false;
 	bool joinChannel = false;
 	QString botAppName;
 	bool botAppForceConfirmation = false;
+	bool botAppFullScreen = false;
 	QString attachBotUsername;
 	std::optional<QString> attachBotToggleCommand;
 	bool attachBotMainOpen = false;

@@ -1,6 +1,5 @@
 name: telegram-desktop
 adopt-info: telegram
-icon: Telegram/Resources/art/icon512@2x.png
 
 base: core24
 grade: stable
@@ -90,18 +89,12 @@ parts:
       - clang
       - libtool-bin
       - python3
-      - protobuf-compiler
-      - libasound2-dev
       - libavif-dev
       - libboost-regex-dev
-      - libfmt-dev
       - libgirepository1.0-dev
       - libglib2.0-dev
       - libheif-dev
       - libopenal-dev
-      - libopus-dev
-      - libprotobuf-dev
-      - libpulse-dev
       - libssl-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
@@ -109,15 +102,13 @@ parts:
       - libxcb-screensaver0-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2t64
       - libavif16
       - libboost-regex1.83.0
+      - libgeoclue-2-0
+      - libgeocode-glib-2-0
       - libglib2.0-0t64
       - libheif1
       - libopenal1
-      - libopus0
-      - libprotobuf-lite32t64
-      - libpulse0
       - libssl3t64
       - libwebkit2gtk-4.1-0
       - libxcb1
@@ -133,7 +124,6 @@ parts:
       - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
-      - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
     override-pull: |
       craftctl default
 
@@ -148,23 +138,33 @@ parts:
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
       craftctl set version="$version"
-
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/org.telegram.desktop.desktop
     override-build: |
       craftctl default
-      rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
+      mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
+
+      APP_ID=org.telegram.desktop
+      sed -i "s/^Icon=$APP_ID$/Icon=snap.telegram-desktop./g" "$CRAFT_PART_INSTALL/usr/share/applications/$APP_ID.desktop"
+      for i in $(find "$CRAFT_PART_INSTALL/usr/share/icons" -name "$APP_ID*.svg" -o -name "$APP_ID*.png"); do
+        PREFIXED="$(dirname "$i")/snap.$CRAFT_PROJECT_NAME.$(basename "$i" | sed "s/$APP_ID//")"
+        mv "$i" "$PREFIXED"
+        DEST="$(dirname "$i" | sed 's@usr/share@meta/gui@')"
+        mkdir -p "$DEST"
+        cp -r "$PREFIXED" "$DEST"
+      done
     after:
       - ada
       - ffmpeg
       - libjxl
+      - protobuf
       - qt
       - rnnoise
+      - tde2e
       - webrtc
 
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 643b18c2be6424fc6f35a52891ed5a6a42502ac2
+    source-commit: 1ffcb17817a2cab167061d530703842395291e69
     plugin: dump
     override-pull: |
       craftctl default
@@ -211,7 +211,7 @@ parts:
   ada:
     source: https://github.com/ada-url/ada.git
     source-depth: 1
-    source-tag: v2.9.0
+    source-tag: v3.2.4
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -221,6 +221,7 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DADA_TESTING=OFF
       - -DADA_TOOLS=OFF
+      - -DADA_INCLUDE_URL_PATTERN=OFF
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
@@ -254,7 +255,7 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.10.3
+    source-tag: v0.11.1
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -274,23 +275,54 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    override-pull: |
-      craftctl default
-      git apply $CRAFT_STAGE/patches/libjxl.patch
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libhwy*
     prime:
       - -./usr/bin
       - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/share
-    after:
-      - patches
+
+  protobuf:
+    source: https://github.com/protocolbuffers/protobuf.git
+    source-depth: 1
+    source-tag: v30.2
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    build-packages:
+      - zlib1g-dev
+    stage-packages:
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=ON
+      - -Dprotobuf_BUILD_TESTS=OFF
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
 
   qt:
-    plugin: nil
+    source: https://github.com/qt/qt5.git
+    source-depth: 1
+    source-tag: v6.9.1
+    source-submodules:
+      - qtbase
+      - qtdeclarative
+      - qtimageformats
+      - qtshadertools
+      - qtsvg
+      - qtwayland
+    plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
@@ -376,41 +408,37 @@ parts:
       - zlib1g
       - mesa-vulkan-drivers
       - xkb-data
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
+      - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DQT_GENERATE_SBOM=OFF
+      - -DINPUT_openssl=linked
     override-pull: |
-      QT=6.8.0
-
-      git clone -b v${QT} --depth=1 https://github.com/qt/qt5.git .
-      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
-
+      craftctl default
+      QT="$(grep 'set(QT_REPO_MODULE_VERSION' qtbase/.cmake.conf | sed -r 's/.*"(.*)".*/\1/')"
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ../qtwayland
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
-    override-build: |
-      cmake -GNinja -B $CRAFT_PART_BUILD \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr \
-        -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr \
-        -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR \
-        -DINPUT_openssl=linked
-
-      cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
-      DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
     prime:
       - -./usr/bin
       - -./usr/doc
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/metatypes
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.prl
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.so
       - -./usr/libexec
+      - -./usr/metatypes
       - -./usr/mkspecs
       - -./usr/modules
+      - -./**/objects-*
     after:
       - libjxl
       - patches
@@ -442,10 +470,36 @@ parts:
     stage:
       - ./usr/bin/systemd-detect-virt
 
+  tde2e:
+    source: https://github.com/tdlib/td.git
+    source-depth: 1
+    source-commit: 51743dfd01dff6179e2d8f7095729caa4e2222e9
+    plugin: cmake
+    build-environment:
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    build-packages:
+      - gperf
+      - libssl-dev
+      - zlib1g-dev
+    stage-packages:
+      - libssl3t64
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - -DTD_E2E_ONLY=ON
+    prime:
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/*.a
+
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 8198c4d8b91e22d68eb5c7327fd408e3b6abcc79
+    source-commit: 62321fd7128ab2650b459d4195781af8185e46b5
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s

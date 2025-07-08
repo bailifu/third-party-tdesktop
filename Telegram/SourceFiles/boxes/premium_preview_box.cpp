@@ -77,7 +77,7 @@ bool operator==(const Descriptor &a, const Descriptor &b) {
 struct Preload {
 	Descriptor descriptor;
 	std::shared_ptr<Data::DocumentMedia> media;
-	std::weak_ptr<ChatHelpers::Show> show;
+	std::weak_ptr<Main::SessionShow> show;
 };
 
 [[nodiscard]] std::vector<Preload> &Preloads() {
@@ -133,6 +133,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_subtitle_effects();
+	case PremiumFeature::TodoLists:
+		return tr::lng_premium_summary_subtitle_todo_lists();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_subtitle_location();
@@ -150,6 +152,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_subtitle_chat_intro();
 	case PremiumFeature::ChatLinks:
 		return tr::lng_business_subtitle_chat_links();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_subtitle_filter_tags();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -196,6 +200,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_business();
 	case PremiumFeature::Effects:
 		return tr::lng_premium_summary_about_effects();
+	case PremiumFeature::TodoLists:
+		return tr::lng_premium_summary_about_todo_lists();
 
 	case PremiumFeature::BusinessLocation:
 		return tr::lng_business_about_location();
@@ -213,6 +219,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_business_about_chat_intro();
 	case PremiumFeature::ChatLinks:
 		return tr::lng_business_about_chat_links();
+	case PremiumFeature::FilterTags:
+		return tr::lng_premium_summary_about_filter_tags();
 	}
 	Unexpected("PremiumFeature in SectionTitle.");
 }
@@ -534,6 +542,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::LastSeen: return "last_seen";
 		case PremiumFeature::MessagePrivacy: return "message_privacy";
 		case PremiumFeature::Effects: return "effects";
+		case PremiumFeature::TodoLists: return "todo";
 
 		case PremiumFeature::BusinessLocation: return "business_location";
 		case PremiumFeature::BusinessHours: return "business_hours";
@@ -543,6 +552,7 @@ struct VideoPreviewDocument {
 		case PremiumFeature::BusinessBots: return "business_bots";
 		case PremiumFeature::ChatIntro: return "business_intro";
 		case PremiumFeature::ChatLinks: return "business_links";
+		case PremiumFeature::FilterTags: return "folder_tags";
 		}
 		return "";
 	}();
@@ -1134,8 +1144,7 @@ void PreviewBox(
 		button->resizeToWidth(width);
 		if (!descriptor.fromSettings) {
 			button->setClickedCallback([=] {
-				const auto window = show->resolveWindow(
-					ChatHelpers::WindowUsage::PremiumPromo);
+				const auto window = show->resolveWindow();
 				if (!window) {
 					return;
 				}
@@ -1522,6 +1531,18 @@ void DoubledLimitsPreviewBox(
 		Main::Domain::kPremiumMaxAccounts,
 		till,
 	});
+	{
+		const auto premium = limits.similarChannelsPremium();
+		entries.push_back({
+			tr::lng_premium_double_limits_subtitle_similar_channels(),
+			tr::lng_premium_double_limits_about_similar_channels(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			limits.similarChannelsDefault(),
+			premium,
+		});
+	}
 	Ui::Premium::ShowListBox(
 		box,
 		st::defaultPremiumLimits,
@@ -1641,6 +1662,11 @@ void TelegramBusinessPreviewBox(
 			tr::lng_business_subtitle_chat_links,
 			tr::lng_business_about_chat_links,
 			st::settingsBusinessPromoChatLinks);
+			break;
+		case PremiumFeature::FilterTags: push(
+			tr::lng_premium_summary_subtitle_filter_tags,
+			tr::lng_premium_summary_about_filter_tags,
+			st::settingsPremiumIconTags);
 			break;
 		}
 	}

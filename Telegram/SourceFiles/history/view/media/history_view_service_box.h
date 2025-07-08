@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class RippleAnimation;
-namespace Premium {
-class ColoredMiniStars;
-} // namespace Premium
 } // namespace Ui
+
+namespace Ui::Premium {
+class ColoredMiniStars;
+enum class MiniStarsType;
+} // namespace Ui::Premium
 
 namespace HistoryView {
 
@@ -25,16 +27,17 @@ public:
 	[[nodiscard]] virtual int width();
 	[[nodiscard]] virtual int top() = 0;
 	[[nodiscard]] virtual QSize size() = 0;
-	[[nodiscard]] virtual QString title() = 0;
+	[[nodiscard]] virtual TextWithEntities title() = 0;
 	[[nodiscard]] virtual TextWithEntities subtitle() = 0;
 	[[nodiscard]] virtual int buttonSkip() {
 		return top();
 	}
 	[[nodiscard]] virtual rpl::producer<QString> button() = 0;
-	[[nodiscard]] virtual bool buttonMinistars() {
-		return false;
+	[[nodiscard]] virtual auto buttonMinistars()
+	-> std::optional<Ui::Premium::MiniStarsType> {
+		return std::nullopt;
 	}
-	[[nodiscard]] virtual QString cornerTagText() {
+	[[nodiscard]] virtual QImage cornerTag(const PaintContext &context) {
 		return {};
 	}
 	virtual void draw(

@@ -185,6 +185,8 @@ public:
 	virtual bool listShowReactPremiumError(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &id) = 0;
+	virtual base::unique_qptr<Ui::PopupMenu> listFillSenderUserpicMenu(
+		PeerId userpicPeerId) = 0;
 	virtual void listWindowSetInnerFocus() = 0;
 	virtual bool listAllowsDragForward() = 0;
 	virtual void listLaunchDrag(
@@ -218,6 +220,8 @@ public:
 	bool listShowReactPremiumError(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &id) override;
+	base::unique_qptr<Ui::PopupMenu> listFillSenderUserpicMenu(
+		PeerId userpicPeerId) override;
 	void listWindowSetInnerFocus() override;
 	bool listAllowsDragForward() override;
 	void listLaunchDrag(
@@ -356,6 +360,9 @@ public:
 		int top) const;
 	[[nodiscard]] ClickHandlerContext prepareClickHandlerContext(
 		FullMsgId id);
+	[[nodiscard]] ClickContext prepareClickContext(
+		Qt::MouseButton button,
+		FullMsgId itemId);
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -391,7 +398,7 @@ public:
 	// ElementDelegate interface.
 	Context elementContext() override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	SelectionModeResult elementInSelectionMode() override;
+	SelectionModeResult elementInSelectionMode(const Element *view) override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -421,7 +428,7 @@ public:
 		const QString &query,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
-	bool elementIsChatWide() override;
+	ElementChatMode elementChatMode() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
@@ -436,7 +443,7 @@ public:
 	bool elementHideTopicButton(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
-	void overrideIsChatWide(bool isWide);
+	void overrideChatMode(std::optional<ElementChatMode> mode);
 
 	~ListWidget();
 
@@ -808,6 +815,8 @@ private:
 	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
+	bool _overSenderUserpic = false;
+	bool _mouseActive = false;
 
 	bool _selectEnabled = false;
 	HistoryItem *_selectedTextItem = nullptr;
@@ -825,7 +834,7 @@ private:
 	bool _refreshingViewer = false;
 	bool _showFinished = false;
 	bool _resizePending = false;
-	std::optional<bool> _overrideIsChatWide;
+	std::optional<ElementChatMode> _overrideChatMode;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;
